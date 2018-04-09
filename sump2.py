@@ -3571,7 +3571,10 @@ def get_font( self , font_name, font_height ):
     self.txt_height = txt.get_height();
   else:
     import fnmatch;
-    font_height = int( font_height, 20 ); # Conv String to Int
+    if(self.os_sys == "Darwin"):
+        font_height = int( font_height, 20 ); # Conv String to Int
+    else:
+        font_height = int( font_height, 10 ); # Conv String to Int
     font_list = self.pygame.font.get_fonts(); # List of all fonts on System
     self.font_list = [];
     for each in font_list:
