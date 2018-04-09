@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # sump2
-#               Copyright (c) Kevin M. Hubbard 2016 BlackMesaLabs
-#
+#               Copyright (c) Kevin M. Hubbard 2017 BlackMesaLabs
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -65,6 +64,13 @@
 #   https://pypi.python.org/packages/...../pyserial-3.1.1-py2.py3-none-any.whl
 #   pip install pyserial-3.1.1-py2.py3-none-any.whl
 #
+# [ spidev for RaspberryPi SPI Communications to icoboard ]
+#   sudo apt-get install python-dev
+#   sudo apt-get install git
+#   git clone git://github.com/doceme/py-spidev
+#   cd py-spidev
+#   sudo python setup.py install
+#
 # TODO: Vertical resizing of window has issues. Signal scrolling isnt updated
 #
 # Revision History:
@@ -84,26 +90,67 @@
 #          conversion doesnt work unless there is a value change every sample
 # NOTE: Pygame stops responding if window is dragged onto second monitor.
 # TODO: Doesn't support SUMP list reordering or wave.txt order.
-#       09.05.16 khubbard   Fix for VCD exporting nicknames. GUI crash fixes.
-#       09.06.16 khubbard   Partial ported from Python 2.7 to 3.5. Incomplete.
-#       09.18.16 khubbard   Major performance improvements. GUI file loading  
-#       09.19.16 khubbard   Adjust DWORDs in RLE for trig_delay value         
-#       09.20.16 khubbard   RLE Undersample 4x-64x feature added. Popup change.
-#       09.23.16 khubbard   Popup Entry for variable changes in GUI added.
-#       09.24.16 khubbard   User Interface and performance usability improvmnts
-#       09.25.16 khubbard   GUI popup for signal rename.
-#       09.26.16 khubbard   Fixed opening VCD files for static offline viewing.
-#       09.26.16 khubbard   zoom_out capped at max_samples. RLE->VCD working
-#       09.29.16 khubbard   cursor_snap back in for single click op. VCD 'x'
-#       10.04.16 khubbard   fast_render added. Disable 4x prerender on >1000
-#       10.06.16 khubbard   Fixed popup bugs. sump_bundle_data() feature added
-#       10.16.16 khubbard   RLE culling null sample improvements. Menu changes.
-#       10.17.16 khubbard   fixed vcdfile2signal_list() not decompressing.
-#       10.18.16 khubbard   fixed menu. New function list_remove
-#       10.19.16 khubbard   RLE Event to DWORD alignment fix. Needs HW too.
-#       10.20.16 khubbard   Improve centering to trigger post acquisition. 
-#       10.21.16 khubbard   Acquisition_Length fixed. Also works with RLE now.
-#       10.24.16 khubbard   Fixed RLE cropping not showing DWORDs.Speed Improvs
+#   09.05.16 khubbard   Fix for VCD exporting nicknames. GUI crash fixes.
+#   09.06.16 khubbard   Partial ported from Python 2.7 to 3.5. Incomplete.
+#   09.18.16 khubbard   Major performance improvements. GUI file loading  
+#   09.19.16 khubbard   Adjust DWORDs in RLE for trig_delay value         
+#   09.20.16 khubbard   RLE Undersample 4x-64x feature added. Popup change.
+#   09.23.16 khubbard   Popup Entry for variable changes in GUI added.
+#   09.24.16 khubbard   User Interface and performance usability improvmnts
+#   09.25.16 khubbard   GUI popup for signal rename.
+#   09.26.16 khubbard   Fixed opening VCD files for static offline viewing.
+#   09.26.16 khubbard   zoom_out capped at max_samples. RLE->VCD working
+#   09.29.16 khubbard   cursor_snap back in for single click op. VCD 'x'
+#   10.04.16 khubbard   fast_render added. Disable 4x prerender on >1000
+#   10.06.16 khubbard   Fixed popup bugs. sump_bundle_data() feature added
+#   10.16.16 khubbard   RLE culling null sample improvements. Menu changes.
+#   10.17.16 khubbard   fixed vcdfile2signal_list() not decompressing.
+#   10.18.16 khubbard   fixed menu. New function list_remove
+#   10.19.16 khubbard   RLE Event to DWORD alignment fix. Needs HW too.
+#   10.20.16 khubbard   Improve centering to trigger post acquisition. 
+#   10.21.16 khubbard   Acquisition_Length fixed. Also works with RLE now.
+#   10.24.16 khubbard   Fixed RLE cropping not showing DWORDs.Speed Improvs
+#   10.26.16 khubbard   TCP change to send full DWORDs with leading 0s
+#   12.19.16 khubbard   Fork for Pi and icoboard from Windows original.
+# 2017.01.05 khubbard   Merge Win,Pi fork. bundle fix. Trigger enhancements
+# 2017.01.07 khubbard   Fixed Pi import SpiDev issues with 2017.01.05
+# 2017.03.09 khubbard   Arm without polling option added.
+# 2017.03.09 khubbard   Only allow single falling edge trigger.
+# 2017.03.09 khubbard   Replace 2D arrays from VCD export.     
+# 2017.03.14 khubbard   Added show/hide support to children of bundles.
+# 2017.04.19 khubbard   Keyboard macros and crop_to_ini added.
+# 2017.04.25 khubbard   startup and shutdown scripting.
+# 2017.06.08 khubbard   Added system command for calling external programs
+# 2017.09.13 khubbard   Fixed poor compression in conv_txt2vcd()
+# 2017.09.13 khubbard   Faster VCD by not iterating hidden sump_save_txt()
+# 2017.09.13 khubbard   Updated manual
+# 2017.09.22 khubbard   Fixed zoom_out bug. Rendering performance increase.
+# 2017.09.22 khubbard   trigger_remove_all added. rle_autocull added.
+# 2017.09.22 khubbard   rle_autocull added. rle_gap_remove added.
+# 2017.09.23 khubbard   Convrtd sig values from "1" to True.1/2 DRAM needed
+# 2017.09.23 khubbard   RLE_LOSSY fully implemented. 10x speedup for 2M pts
+# 2017.09.23 khubbard   Smart time cursors scales between ns,us and ms 
+# 2017.09.25 khubbard   Time units displayed for windows.
+# 2017.09.25 khubbard   Fixed fast rendering of static signals.
+# 2017.09.26 khubbard   Improved cursor operations.
+# 2017.09.27 khubbard   rle_gap_replace added.      
+# 2017.09.30 khubbard   Fix RLE_LOSSY bug to pad enough samples for DWORDs
+# 2017.09.30 khubbard   Fix rle_autocull bug tossing too many samples
+# 2017.10.01 khubbard   Fix rle_autocull post trigger bug            
+# 2017.10.05 khubbard   list_view added
+# 2017.10.05 khubbard   dont load startup file if no hardware ( ie VCD )
+# 2017.10.06 khubbard   VCD gen 10x faster, bundles and load_vcd added.
+# 2018.02.28 khubbard   Line-6295 Read in VCD 'x','z' as 0. reload_vcd added
+# 2018.03.01 khubbard   os_platform added to separate RaspPi from Linux desktop
+#
+# Note: VV tags every place sig.values were converted from "1" to True 
+#
+# Web Location:
+#   https://github.com/blackmesalabs/sump2
+# Also please see:
+#   https://blackmesalabs.wordpress.com/
+#     2016/12/22/sump2-100-msps-32bit-logic-analyzer-for-icoboardraspberrypi/
+#     2016/10/24/sump2-96-msps-logic-analyzer-for-22/
 ###############################################################################
 import time   
 from time import sleep;
@@ -114,12 +161,9 @@ import os;
 import platform;
 import locale;
 
-
 class main(object):
  def __init__(self):
-# import math   # pow
-# import types  # type
-  self.vers = "2016.10.24";
+  self.vers = "2018.03.01";
   print("Welcome to SUMP2 " + self.vers + " by BlackMesaLabs");
   self.mode_cli = True;
 
@@ -135,9 +179,26 @@ class main(object):
   self.math   = math;
   list2file( self, "sump2_manual.txt", init_manual(self ) );
 
-  #locale.setlocale( locale.LC_NUMERIC, 'English' );
+  # Generate a Text file that shows all the key macros
+  # vars["sump_macro_1"]  = "Acquire_RLE";
+  macro_list = [];
+  for key in self.vars:
+    if ( "sump_macro_" in key ):
+      macro_list += [ key + " " + self.vars[key] ];
+  list2file( self, "sump2_key_macros.txt", sorted(macro_list) );
 
   init_globals( self );# Internal software variables
+  try:
+    print( self.os_sys );
+    if  self.os_sys != "Linux" and  self.os_sys != "Darwin":
+      locale.setlocale( locale.LC_NUMERIC, 'English' );
+#   if ( self.os_sys == "Linux" ):
+#     import spidev;# SPI Interface Module for Pi
+#   else:
+#     locale.setlocale( locale.LC_NUMERIC, 'English' );
+  except:
+    print("WARNING: OS Detection Failed!! Don't know what to do.");
+
   self.file_log = open ( self.vars["file_log"] , 'w' );
 
 
@@ -179,8 +240,10 @@ class main(object):
     self.bd=None;
     file2signal_list( self, self.file_name );# VCD is now a signal_list
 #   save_format( self, self.file_name, False );# Create Wave File from VCD Info
-    self.file_name = None; # Make sure we don't overwrite vcd with wave on exit
     self.vcd_import = True;# Prevents saving a VCD specific sump2_wave.txt file
+    self.vcd_name   = self.file_name;
+    self.file_name = None; # Make sure we don't overwrite vcd with wave on exit
+
 
 # # Attempt to loading an existing wave.txt file for this block if exists
 # # otherwise, create one from scratch
@@ -226,9 +289,11 @@ class main(object):
 
     # Load in the wavefile
     if os.path.exists( file_name ):
+      draw_header( self, ( "load_format() "+ file_name ) );# Pi
       print( "load_format() ", file_name );
       load_format( self, file_name ); 
       trig_i = sump_dump_data(self);
+      self.trig_i = trig_i;
       sump_vars_to_signal_attribs( self );# Populates things like trigger attr
 
 #   if os.path.exists( file_name ):
@@ -272,10 +337,20 @@ class main(object):
 
   recalc_max_samples( self );
 
-
   # Draw the 1st startup screen
   screen_refresh( self );
   self.context = "gui";
+
+  self.pygame.mouse.set_cursor(*pygame.cursors.arrow);# Pi
+
+  file_startup = self.vars["sump_script_startup"];
+  import os.path
+# if ( os.path.isfile(file_startup) ):
+  if ( os.path.isfile(file_startup) and self.bd != None ):
+    rts = source_file( self, [file_startup] );
+    sump_vars_to_signal_attribs( self );# Update triggers, etc
+    self.name_surface_valid = False;
+    screen_refresh( self );
 
   # GUI Main Loop
   self.clock = self.pygame.time.Clock();
@@ -283,12 +358,16 @@ class main(object):
   self.pygame.key.set_repeat(50,200);
   while ( self.done==False ):
     # When live, attempt to acquire data, else display static data (faster)
+    if ( self.acq_state=="arm_rle" or  self.acq_state=="arm_normal"):
+      draw_header( self,"Armed");
     if ( self.acq_state == "acquire_single" or
          "acquire_rle" in self.acq_state  or
+         "download"    in self.acq_state  or
          self.acq_state == "acquire_continuous" ):
       # Check to see if acquired bit is set, then read the data
       # print ("%02X" % self.sump.rd( addr = None )[0] );
 
+      # There are different Done HW bits for RLE versus non-RLE acquisitions
       if ( "acquire_rle" in self.acq_state  ):
         sump_done = self.sump.status_triggered + self.sump.status_rle_post;
       else:
@@ -296,11 +375,28 @@ class main(object):
 
       self.undersample_data = False;
       self.undersample_rate = 1;
-      if ( ( self.sump.rd( addr = None )[0] & sump_done ) == sump_done ):
+#     if ( ( self.sump.rd( addr = None )[0] & sump_done ) == sump_done ):
+      if ( 
+           ((self.sump.rd( addr = None )[0] & sump_done ) == sump_done ) or
+           ( "download" in self.acq_state )
+         ):
+        if   ( self.acq_state == "download_rle" ): 
+          self.acq_state = "acquire_rle";
+        elif ( self.acq_state == "download_rle_lossy" ): 
+          self.acq_state = "acquire_rle_lossy";
+        elif ( self.acq_state == "download_normal" ): 
+          self.acq_state = "acquire_single";
+
+        if ( self.vcd_import == True ):
+          self.signal_list = self.signal_list_hw[:];# Support returning to HW 
+          self.vcd_import = False;
+
         if ( self.acq_mode == "nonrle" ):
           trig_i = sump_dump_data(self);
+          self.rle_lossy = False;
         else:
           trig_i = sump_dump_rle_data(self);
+        self.trig_i = trig_i;
         print("Trigger Index = %d " % trig_i );
 
         # Place the cursors by the trigger.
@@ -312,9 +408,13 @@ class main(object):
 #         each.sample = int( trigger_sample ) + offset;
           each.sample = int( trig_i ) + offset;
         self.curval_surface_valid = False;# curval surface invalid 
-
+ 
+#       print( self.acq_state );
         if ( self.acq_state == "acquire_continuous" ):
           sump_arm( self, True );
+#       elif ( self.acq_state=="arm_rle" or  self.acq_state=="arm_normal"):
+#         draw_header( self,"Armed");
+#         pass;
         else:
           self.acq_state = "acquire_stop";
           draw_header( self, "ACQUIRED");
@@ -329,10 +429,29 @@ class main(object):
           start = trig_i - min( trig_to_start, trig_to_end );
           stop  = trig_i + min( trig_to_start, trig_to_end );
 
+#         print(" self.max_samples  %d" % self.max_samples );
+#         print(" trig_i            %d" % trig_i           );
+#         print(" trig_to_start     %d" % trig_to_start    );
+#         print(" trig_to_end       %d" % trig_to_end      );
+#         print(" start             %d" % start            );
+#         print(" stop              %d" % stop             );
+
+# Pi is slower for rendering, so render less
+#         start = trig_i - min( trig_to_start, trig_to_end ) // 2;
+#         stop  = trig_i + min( trig_to_start, trig_to_end ) // 2;
+
           proc_cmd( self, "zoom_to", [str(start), str(stop) ] );
 #         proc_cmd( self, "zoom_to", ["0", str( self.max_samples ) ] );
 #         proc_cmd( self, "zoom_to_cursors", [] );
           print("RENDERING-COMPLETE");
+
+          file_shutdown = self.vars["sump_script_shutdown"];
+          import os.path
+          if ( os.path.isfile(file_shutdown) ):
+            rts = source_file( self, [file_shutdown] );
+            sump_vars_to_signal_attribs( self );# Update triggers, etc
+            self.name_surface_valid = False;
+            screen_refresh( self );
 
       else:
 #       draw_header(self,"Waiting for trigger..");
@@ -345,12 +464,14 @@ class main(object):
 
     for event in pygame.event.get(): # User did something
       # VIDEORESIZE
-      if event.type == pygame.VIDEORESIZE:
-        self.screen= pygame.display.set_mode(event.dict['size'], 
-                            pygame.RESIZABLE | 
-                            pygame.HWSURFACE |
-                            pygame.DOUBLEBUF);
-        self.resize_on_mouse_motion = True;# Delay redraw until resize done
+#     if ( self.os_sys != "Linux" ):
+      if ( self.os_platform != "rpi" ):
+        if event.type == pygame.VIDEORESIZE:
+          self.screen= pygame.display.set_mode(event.dict['size'], 
+                              pygame.RESIZABLE | 
+                              pygame.HWSURFACE |
+                              pygame.DOUBLEBUF);
+          self.resize_on_mouse_motion = True;# Delay redraw until resize done
 
       # Detect when console box has gained focus and switch from GUI to BD_SHELL
       # and loop in a keyboard loop processing commands. Exit on a NULL Command.
@@ -376,12 +497,61 @@ class main(object):
           proc_cmd( self, "font_larger"  , [] );
         elif ( event.key == pygame.K_END       ):
           proc_cmd( self, "font_smaller" , [] );
+#       elif ( event.key == pygame.K_Q         ):
+#         proc_cmd( self, "quit" , [] );
         elif ( event.key == pygame.K_RIGHT ):
           num_samples = self.sample_room // 16;
           proc_cmd( self, "scroll_right", [str(num_samples)] );
         elif ( event.key == pygame.K_LEFT  ):
           num_samples = self.sample_room // 16;
           proc_cmd( self, "scroll_left", [str(num_samples)] );
+        elif ( event.key == pygame.K_F1  or
+               event.key == pygame.K_F2  or
+               event.key == pygame.K_F3  or
+               event.key == pygame.K_F4  or
+               event.key == pygame.K_F5  or
+               event.key == pygame.K_F6  or
+               event.key == pygame.K_F7  or
+               event.key == pygame.K_F8  or
+               event.key == pygame.K_F9  or
+               event.key == pygame.K_F10 or
+               event.key == pygame.K_F11 or
+               event.key == pygame.K_F12 or
+               event.key == pygame.K_1   or
+               event.key == pygame.K_2   or
+               event.key == pygame.K_3   or
+               event.key == pygame.K_4   or
+               event.key == pygame.K_5   or
+               event.key == pygame.K_6   or
+               event.key == pygame.K_7   or
+               event.key == pygame.K_8   or
+               event.key == pygame.K_9   or
+               event.key == pygame.K_0   
+             ):
+          if   ( event.key==pygame.K_1 ): cmd=( self.vars["sump_macro_1"]);
+          elif ( event.key==pygame.K_2 ): cmd=( self.vars["sump_macro_2"]);
+          elif ( event.key==pygame.K_3 ): cmd=( self.vars["sump_macro_3"]);
+          elif ( event.key==pygame.K_4 ): cmd=( self.vars["sump_macro_4"]);
+          elif ( event.key==pygame.K_5 ): cmd=( self.vars["sump_macro_5"]);
+          elif ( event.key==pygame.K_6 ): cmd=( self.vars["sump_macro_6"]);
+          elif ( event.key==pygame.K_7 ): cmd=( self.vars["sump_macro_7"]);
+          elif ( event.key==pygame.K_8 ): cmd=( self.vars["sump_macro_8"]);
+          elif ( event.key==pygame.K_9 ): cmd=( self.vars["sump_macro_9"]);
+          elif ( event.key==pygame.K_0 ): cmd=( self.vars["sump_macro_0"]);
+
+          if   ( event.key==pygame.K_F1 ): cmd=( self.vars["sump_macro_F1"]);
+          elif ( event.key==pygame.K_F2 ): cmd=( self.vars["sump_macro_F2"]);
+          elif ( event.key==pygame.K_F3 ): cmd=( self.vars["sump_macro_F3"]);
+          elif ( event.key==pygame.K_F4 ): cmd=( self.vars["sump_macro_F4"]);
+          elif ( event.key==pygame.K_F5 ): cmd=( self.vars["sump_macro_F5"]);
+          elif ( event.key==pygame.K_F6 ): cmd=( self.vars["sump_macro_F6"]);
+          elif ( event.key==pygame.K_F7 ): cmd=( self.vars["sump_macro_F7"]);
+          elif ( event.key==pygame.K_F8 ): cmd=( self.vars["sump_macro_F8"]);
+          elif ( event.key==pygame.K_F9 ): cmd=( self.vars["sump_macro_F9"]);
+          elif ( event.key==pygame.K_F10): cmd=( self.vars["sump_macro_F10"]);
+          elif ( event.key==pygame.K_F11): cmd=( self.vars["sump_macro_F11"]);
+          elif ( event.key==pygame.K_F12): cmd=( self.vars["sump_macro_F12"]);
+          proc_cmd( self, cmd.lower(), [] );
 
         # Up and Down arrows either Zoom In,Out or Scroll the Signal list
         elif ( event.key == pygame.K_UP    ):
@@ -478,13 +648,14 @@ class main(object):
           # Make sure the region doesnt wander, so calc from mouse press
           self.mouse_region = get_mouse_region(self,
                       self.mouse_btn1dn_x, self.mouse_btn1dn_y );
+#         print( self.mouse_region );
           if   ( self.mouse_region == "cursor" ):
             mouse_event_move_cursor( self );      # Move a cursor
           elif ( self.mouse_region == "slider" ):
             mouse_event_move_slider( self,0 );    # Move the viewport slider
           elif ( self.mouse_region == "signal_name" ):
             mouse_event_vertical_drag_wip( self );# Move a signal name
-# HERE : Doesnt work well
+# Doesnt work well
 #         elif ( self.mouse_region == "signal_value" ):
 #           # Calculate mouse drag deltas in char units
 #           delta_x=abs(self.mouse_btn1dn_x-self.mouse_x) / self.txt_width;
@@ -652,7 +823,7 @@ class main(object):
           draw_popup_cmd( self );
           self.popup_sel = get_popup_sel( self );
           screen_flip( self ); # Place popup on top existing stuff, no erase
-          self.acq_state = "acquire_stop";# Stop any live acquisitions
+#         self.acq_state = "acquire_stop";# Stop any live acquisitions
 
 
 
@@ -660,7 +831,7 @@ class main(object):
 #   draw_screen( self );
 #   screen_flip( self );
 
-  shutdown( self );
+  shutdown( self, False, False );
   return;# This is end of main program loop
 
 ###############################################################################
@@ -677,7 +848,6 @@ def recalc_max_samples( self ):
     self.zoom_x = float(self.screen_width) / float(self.max_samples);
   set_zoom_x( self, self.zoom_x ); # Set the zoom ratio
 
-  # HERE14
   # Warning: This sample_room calculation assumes samples are 1 nibble wide.
   sample_start = self.sample_start;
   start_x = self.sig_value_start_x;
@@ -690,12 +860,23 @@ def display_init( self ):
   log( self, ["display_init()"] );
   import pygame # Import PyGame Module
   pygame.init() # Initialize the game engine
-  self.screen_width  = int( self.vars["screen_width"], 10 );
-  self.screen_height = int( self.vars["screen_height"], 10 );
-  # pygame.NOFRAME, pygame.FULLSCREEN
-  self.screen=pygame.display.set_mode(
-                    [ self.screen_width, self.screen_height ],
-                    pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF );
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    ( self.screen_width, self.screen_height ) = \
+      (pygame.display.Info().current_w, pygame.display.Info().current_h);
+    print( self.screen_width );
+    print( self.screen_height );
+    self.screen=pygame.display.set_mode(
+       [ self.screen_width, self.screen_height ],
+       pygame.FULLSCREEN );
+  else:
+    self.screen_width  = int( self.vars["screen_width"], 10 );
+    self.screen_height = int( self.vars["screen_height"], 10 );
+    self.screen=pygame.display.set_mode(
+       [ self.screen_width, self.screen_height ],
+       pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF );
+
+
   self.pygame = pygame;
   self.pygame.display.set_icon( create_icon( self ) );
   draw_header( self, "" );
@@ -796,36 +977,39 @@ def mouse_event_single_click( self ):
 #     print( self.popup_x );
 def mouse_event_zoom_scroll( self, direction ):
   ( sample, Null )  = get_sample_at_mouse( self, self.mouse_x, self.mouse_y );
-
+  # Mouse zoom in or out depending on wheel direction
   if ( direction == +1 ):
-    if ( True ):
-#     new_zoom_x = self.zoom_x * 1.25;
-      new_zoom_x = self.zoom_x * 2.00;
-      if ( new_zoom_x > 100 ):
-        new_zoom_x = 100.0;# Don't ZoomIn too far
-      set_zoom_x( self, new_zoom_x );
+    new_zoom_x = self.zoom_x * 2.00;
+    if ( new_zoom_x > 100 ):
+      new_zoom_x = 100.0;# Don't ZoomIn too far
+    set_zoom_x( self, new_zoom_x );
   else:
+    # Warning routine appears twice, here and again for zoom_out command
+    # search on ZOOM_OUT. 2017.09.21
+    # Make sure there are enough samples to our right, if not recalculate
+    # the center sample position so that the zoom_out fits within avail samples
     sample_room = self.sample_room * 2.00;
-    new_sample = self.sample_start - sample_room // 4;
-    if ( ( new_sample + sample_room ) > self.max_samples ):
-      proc_cmd( self, "zoom_full", [] );
-      return;
+    sample = self.sample_start - sample_room // 4;
+    if ( ( sample + sample_room ) > self.max_samples ):
+      sample = self.max_samples - sample_room;
+    if ( sample < 0 ): sample = 0;
+    self.sample_start = int( sample );
+    set_zoom_x( self, self.zoom_x / 2.0 );
+    screen_refresh( self );
+    return;
+#   proc_cmd( self, "zoom_full", [] );
 
-    if ( self.stop_zoom == False ):
-#     new_zoom_x = self.zoom_x / 1.25;
-      new_zoom_x = self.zoom_x / 2.00;
-#     if ( new_zoom_x < 0.1 ):
-#       new_zoom_x = 0.1;
-      set_zoom_x( self, new_zoom_x );
+#   if ( self.stop_zoom == False ):
+#     new_zoom_x = self.zoom_x / 2.00;
+#     set_zoom_x( self, new_zoom_x );
 
   # Now see what sample is at the mouse position and adjust start accordingly
   # so that original sample is still under the mouse
   (new_sample,Null)=get_sample_at_mouse( self, self.mouse_x, self.mouse_y );
-  sample_offset = sample - new_sample;
+  sample_offset = int( sample - new_sample );
   self.sample_start += sample_offset;
   if ( self.sample_start < 0 ):
     self.sample_start = 0;
- 
   screen_refresh( self );
   return;
 
@@ -848,16 +1032,49 @@ def mouse_event_move_cursor( self ):
   (self.mouse_x,self.mouse_y) = self.pygame.mouse.get_pos();
   ( sample, Null )  = get_sample_at_mouse( self, self.mouse_x, self.mouse_y );
   self.curval_surface_valid = False;# curval surface is invalid when cur move
-  for cur_obj in self.cursor_list:
-    if ( self.mouse_btn1dn_y > cur_obj.y and \
-         self.mouse_btn1dn_y < cur_obj.y+self.txt_height ):
-      if ( sample < 0 ):
-        sample = 0;
-      cur_obj.sample = int( sample );
-      for each in self.cursor_list:
-        each.selected = False;# Make both cursors unselected
-      cur_obj.selected = True;# now select the current cursor only
-      screen_refresh( self );
+# for cur_obj in self.cursor_list:
+#   if ( self.mouse_btn1dn_y > cur_obj.y and \
+#        self.mouse_btn1dn_y < cur_obj.y+self.txt_height ):
+#     if ( sample < 0 ): sample = 0;
+#     if ( sample > self.max_samples ): sample=self.max_samples;
+#     cur_obj.sample = int( sample );
+#     for each in self.cursor_list:
+#       each.selected = False;# Make both cursors unselected
+#     cur_obj.selected = True;# now select the current cursor only
+#     screen_refresh( self );
+# return;
+
+  # Determine which cursor is closest to mouse click and move that one.
+  # If the cursors are close to each other, use Y location of mouse to 
+  # determine which cursor the user is pointing to, else use closest X.
+  c1_y = self.cursor_list[0].y;
+  c2_y = self.cursor_list[1].y;
+  c1_x = self.cursor_list[0].x;
+  c2_x = self.cursor_list[1].x;
+# if ( abs( c1_x - c2_x ) > 50 ):
+#   if ( abs( self.mouse_btn1dn_x - c1_x ) < \
+#        abs( self.mouse_btn1dn_x - c2_x )     ):
+#     cur_obj = self.cursor_list[0];
+#   else:
+#     cur_obj = self.cursor_list[1];
+# else:
+#   if ( abs( self.mouse_btn1dn_y - c1_y ) < \
+#        abs( self.mouse_btn1dn_y - c2_y )     ):
+#     cur_obj = self.cursor_list[0];
+#   else:
+#     cur_obj = self.cursor_list[1];
+  if ( self.mouse_btn1dn_y < c1_y+self.txt_height ):
+    cur_obj = self.cursor_list[0];
+  else:
+    cur_obj = self.cursor_list[1];
+
+  if ( sample < 0 ): sample = 0;
+  if ( sample > self.max_samples ): sample=self.max_samples;
+  cur_obj.sample = int( sample );
+  for each in self.cursor_list:
+    each.selected = False;# Make both cursors unselected
+  cur_obj.selected = True;# now select the current cursor only
+  screen_refresh( self );
   return;
 
 
@@ -967,7 +1184,8 @@ def get_mouse_region( self, mouse_x, mouse_y ):
     return "scroll_right";
   if ( mouse_x > self.sig_value_start_x and
        mouse_x < self.sig_value_stop_x  and
-       mouse_y > self.cursor_start_y    and 
+#      mouse_y > self.cursor_start_y    and 
+#      mouse_y > self.sig_value_stop_y+self.txt_height and
        mouse_y < self.cursor_stop_y+self.txt_height    ):
     return "cursor";
   if ( mouse_x > self.sig_value_start_x and
@@ -1064,7 +1282,7 @@ def init_help( self ):
   a = [];
   a+=["#####################################################################"];
   a+=["# SUMP2 BlackMesaLabs  GNU GPL V2 Open Source License. Python 3.x   #"];
-  a+=["# (C) Copyright 2016 Kevin M. Hubbard - All rights reserved.        #"];
+  a+=["# (C) Copyright 2018 Kevin M. Hubbard - All rights reserved.        #"];
   a+=["#####################################################################"];
   a+=["# bd_shell Commands                                                 #"];
   a+=["#   env                : Display all assigned variables and values  #"];
@@ -1108,7 +1326,7 @@ def init_manual( self ):
   a = [];
   a+=["#####################################################################"];
   a+=["# SUMP2 by BlackMesaLabs  GNU GPL V2 Open Source License. Python 3.x "];
-  a+=["# (C) Copyright 2016 Kevin M. Hubbard - All rights reserved.         "];
+  a+=["# (C) Copyright 2018 Kevin M. Hubbard - All rights reserved.         "];
   a+=["#####################################################################"];
   a+=["1.0 Scope                                                            "];
   a+=[" This document describes the SUMP2 software and hardware.            "];
@@ -1131,19 +1349,30 @@ def init_manual( self ):
   a+=[" Zoom_Previous      : Return to previous zoom view.                  "];
   a+=[" Zoom_to_Cursors    : View region bound by cursors                   "];
   a+=[" Crop_to_Cursors    : Reduce sample set to region bound by cursors   "];
+  a+=[" Crop_to_INI        : Reduce sample set to region bound by INI file  "];
   a+=[" Cursors_to_View    : Bring both cursors into current view           "];
   a+=[" Cursor1_to_Here    : Bring Cursor1 to mouse pointer                 "];
   a+=[" Cursor2_to_Here    : Bring Cursor2 to mouse pointer                 "];
-  a+=[" Acquire_Single     : Arm hardware for single non-RLE acquisition    "];
+  a+=[" Acquire_Normal     : Arm for non-RLE acquisition and wait for trig  "];
+  a+=[" Acquire_RLE        : Arm for RLE acquisition and wait for trigger   "];
+  a+=[" Acquire_RLE_Lossy  : Arm for RLE Lossy acquisition and wait for trig"];
+  a+=[" Arm_Normal         : Arm for non-RLE acquisition.                   "];
+  a+=[" Arm_RLE            : Arm for RLE acquisition.                       "];
+  a+=[" Download_Normal    : Download acquisition from Arm_Normal           "];
+  a+=[" Download_RLE       : Download acquisition from Arm_RLE              "];
+  a+=[" Download_RLE_Lossy : Download acquisition from Arm_RLE              "];
+  a+=[" Acquire_Stop       : Abort an Arming                                "];
   a+=[" Acquire_Continuous : Arm hardware for looping non-RLE acquisitions  "];
-  a+=[" Acquire_Stop       : Issue a stop to hardware from current Arming   "];
-  a+=[" Acquire_RLE_1x     : Arm hardware for RLE acquisition no decimation "];
-  a+=[" Acquire_RLE_8x     : Arm hardware for RLE acquisition 8x decimation "];
-  a+=[" Acquire_RLE_64x    : Arm hardware for RLE acquisition 64x decimation"];
+  a+=[" Load_VCD           : View the specified VCD file                    "];
+  a+=[" Reload_VCD         : Reload the currently loaded VCD file           "];
+  a+=[" Save_VCD_Full      : Save entire acquisition to VCD file            "];
+  a+=[" Save_VCD_Cursors   : Save Cursor Region to VCD file                 "];
+  a+=[" List_View          : View selected signals in a text file           "];
   a+=[" File_Load          : Load a bd_shell script file                    "];
   a+=[" File_Save          : Save capture to a VCD,PNG,JPG, etc file        "];
   a+=[" Save_Rename        : Rename the last file saved                     "];
-  a+=[" Fonts              : Increase or Decrease GUI font size             "];
+  a+=[" Font_Larger        : Increase GUI font size                         "];
+  a+=[" Font_Smaller       : Decrease GUI font size                         "];
   a+=[" BD_SHELL           : Close GUI and open a BD_SHELL command line     "]; 
   a+=["                                                                     "];
   a+=[" Rename             : Rename a selected signal's nickname            "]; 
@@ -1179,6 +1408,12 @@ def init_manual( self ):
   a+=[" sump_user_pattern0      : 32bit user pattern0 field                 "];
   a+=[" sump_user_pattern1      : 32bit user pattern1 field                 "];
   a+=[" sump_watchdog_time      : Watchdog timeout for Watchdog trigger     "];
+  a+=[" sump_rle_gap_remove     : For RLE_LOSSY, replace any RLE gaps that  "];
+  a+=["                           exceed N clocks with M gap_replace clocks."];
+  a+=[" sump_rle_gap_replace    : For RLE_LOSSY, see sump_rle_gap_remove,   "];
+  a+=["                           this is M value to replace the N gaps.    "];
+  a+=[" sump_rle_autocull       : If 1, remove any RLE dead time at front   "];
+  a+=["                           or end of RLE acquisition samples.        "];
   a+=["                                                                     "];
   a+=["5.0 SUMP2 Hardware                                                   "];
   a+=[" The SUMP2 hardware is a single verilog file with fixed input parms  "];
@@ -1217,9 +1452,6 @@ def init_manual( self ):
   a+=[" for both viewing and VCD generation.                                "];
   a+=["  crop_to_cursors : Permanently crops the number of samples to a     "];
   a+=["                    region indicated by the cursors.                 "];
-  a+=["  RLE Decimation  : 8x and 64x decimation specified at arming will   "];
-  a+=["                    acquire the RLE data and reduce the sample rate  "];
-  a+=["                    by 8x or 64x prior to rendering.                 "];
   a+=["  Signal Hiding   : Hiding a signal prior to acquisition will mask   "];
   a+=["                    the signal entirely and increase the overall RLE "];
   a+=["                    acquisition length. Hiding a signal post acquire "];
@@ -1316,13 +1548,41 @@ def init_vars( self, file_ini ):
   vars["cursor_unit"] = "clocks";
 # vars["cursor_unit"] = "samples";
   vars["cursor_mult"] = "1.0";
+  vars["sump_crop_pre_trig_len"]  = "00040000";
+  vars["sump_crop_post_trig_len"] = "00001000";
+  vars["sump_macro_1"]  = "Acquire_RLE";
+  vars["sump_macro_2"]  = "Acquire_RLE_Lossy";
+  vars["sump_macro_3"]  = "Acquire_Normal";
+  vars["sump_macro_4"]  = "Quit";
+  vars["sump_macro_5"]  = "Crop_to_INI";
+  vars["sump_macro_6"]  = "Crop_to_Cursors";
+  vars["sump_macro_7"]  = "Save_PNG";
+  vars["sump_macro_8"]  = "Reload_VCD";
+  vars["sump_macro_9"]  = "Zoom_to_Cursors";
+  vars["sump_macro_0"]  = "Cursors_to_View";
+
+  vars["sump_macro_F1"]  = "Acquire_RLE";
+  vars["sump_macro_F2"]  = "Acquire_RLE_Lossy";
+  vars["sump_macro_F3"]  = "Acquire_Normal";
+  vars["sump_macro_F4"]  = "Quit";
+  vars["sump_macro_F5"]  = "Crop_to_INI";
+  vars["sump_macro_F6"]  = "Crop_to_Cursors";
+  vars["sump_macro_F7"]  = "Save_PNG";
+  vars["sump_macro_F8"]  = "Reload_VCD";
+  vars["sump_macro_F9"]  = "Zoom_to_Cursors";
+  vars["sump_macro_F10"] = "Cursors_to_View";
+  vars["sump_macro_F11"] = "Cursor1_to_Here";
+  vars["sump_macro_F12"] = "Cursor2_to_Here";
 
   vars["bd_connection"         ] = "tcp";
   vars["bd_protocol"           ] = "poke";
   vars["bd_server_ip"          ] = "localhost";
   vars["bd_server_socket"      ] = "21567";
   vars["uut_name"              ] = "UUT";
-  vars["sump_addr"             ] = "00000090" ;# Addr of sump2_ctrl_reg
+# vars["sump_addr"             ] = "00000090" ;# Addr of sump2_ctrl_reg
+  vars["sump_addr"             ] = "00000010" ;# Addr of sump2_ctrl_reg
+  vars["sump_script_startup"   ] = "sump2_startup.txt";
+  vars["sump_script_shutdown"  ] = "sump2_shutdown.txt";
   vars["sump_script_inc_filter"] = "*.txt";
   vars["sump_script_exc_filter"] = "sump2_*.txt";
   vars["sump_trigger_type"     ] = "or_rising";
@@ -1330,9 +1590,12 @@ def init_vars( self, file_ini ):
   vars["sump_trigger_delay"    ] = "0000";
   vars["sump_trigger_nth"      ] = "0001";
   vars["sump_acquisition_len"  ] = "44";
+  vars["sump_rle_autocull"     ]   = "1";
+  vars["sump_rle_gap_remove"   ]   = "1024";
+  vars["sump_rle_gap_replace"  ]   = "16";
   vars["sump_rle_event_en"     ] = "FFFFFFFF";
-  vars["sump_rle_pre_trig_len" ] = "00100000";
-  vars["sump_rle_post_trig_len"] = "00100000";
+  vars["sump_rle_pre_trig_len" ] = "00010000";
+  vars["sump_rle_post_trig_len"] = "00010000";
   vars["sump_user_ctrl"        ] = "00000000";
   vars["sump_user_pattern0"    ] = "00000000";
   vars["sump_user_pattern1"    ] = "00000000";
@@ -1372,6 +1635,13 @@ def var_dump( self, file_ini ):
     txt_list.append( key + " = " + val + "\n" );
   for each in sorted( txt_list ):
     file_out.write( each );
+  file_out.close(); 
+  return;
+
+def hexlist2file( self, file_name, my_list ):
+  file_out  = open( file_name, 'w' );
+  for each in my_list:
+    file_out.write( "%08x\n" % each );
   file_out.close(); 
   return;
 
@@ -1604,6 +1874,20 @@ def more_file( self, parms ):
     return;
   return rts;
 
+
+def load_vcd( self, parms ):
+  if ( self.signal_list_hw == None ):
+    self.signal_list_hw = self.signal_list;# Support returning to HW view
+
+  file_name = parms[0];
+# self.bd=None;
+  file2signal_list( self, file_name );# VCD is now a signal_list
+  self.vcd_import = True;# Prevents saving a VCD specific sump2_wave.txt file
+  self.vcd_name   = file_name;
+  self.file_name = None; # Make sure we don't overwrite vcd with wave on exit
+  proc_cmd( self, "zoom_to", ["0", str( self.max_samples ) ] );# Redraws
+  return;
+
 ###############################################################################
 # interpret a bd_shell script or wave file
 # a wave file is easy to spot as 1st char on each line is a "/"
@@ -1705,17 +1989,65 @@ def proc_cmd( self, cmd, parms ):
   elif ( cmd == "source" ):
     rts = source_file( self, parms );
 
+  elif ( cmd == "load_vcd" ):
+    rts = load_vcd( self, parms );
+
+  elif ( cmd == "reload_vcd" ):
+    rts = load_vcd( self, [self.vcd_name] );
+
+  elif ( cmd == "system" ):
+    import os;
+    txt = "";
+    for each in parms:
+      if ( each != None ):
+        txt = txt + each + " ";
+    os.system( txt );
+
+  elif ( cmd == "gui_minimize" ):
+    self.pygame.display.iconify();
+#  elif ( cmd == "gui_maximize" ):
+#    self.screen_width  = int( self.vars["screen_width"], 10 );
+#    self.screen_height = int( self.vars["screen_height"], 10 );
+#    self.screen=pygame.display.set_mode(
+#       [ self.screen_width, self.screen_height ],
+#       pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF );
+
+
   elif ( cmd == "more" ):
     rts = more_file( self, parms );
 
   elif ( cmd == "help" or cmd == "?" ):
     rts = self.help;# I'm a funny guy
 
+  elif ( cmd == "list_view_cursors" or
+         cmd == "list_view_full"      ):
+    filename = make_unique_filename( self, "sump2_list_", ".txt" );
+    sump_save_txt( self, filename, mode_list = True, cmd = cmd );
+    try:
+      import os;
+      if ( self.os_sys == "Linux" or self.os_sys == "Darwin"):
+        os.system('vi ' + filename );
+      else:
+        os.system('notepad.exe ' + filename );
+    except:
+      rts += ["ERROR: "+cmd+" "+filename ];
+
   elif ( cmd == "manual" ):
     try:
       import os;
       filename = "sump2_manual.txt";
-      if ( self.os_sys == "Linux" ):
+      if ( self.os_sys == "Linux" or self.os_sys == "Darwin"):
+        os.system('vi ' + filename );
+      else:
+        os.system('notepad.exe ' + filename );
+    except:
+      rts += ["ERROR: "+cmd+" "+filename ];
+
+  elif ( cmd == "key_macros" ):
+    try:
+      import os;
+      filename = "sump2_key_macros.txt";
+      if ( self.os_sys == "Linux" or self.os_sys == "Darwin"):
         os.system('vi ' + filename );
       else:
         os.system('notepad.exe ' + filename );
@@ -1725,9 +2057,18 @@ def proc_cmd( self, cmd, parms ):
   elif ( cmd == "bd_shell" ):
     bd_shell(self, cmd_start ="" );
 
-  elif ( cmd == "quit" or cmd == "exit" ):
+  elif ( cmd == "load_fpga" ):
+    load_fpga(self);
+
+  elif ( cmd=="quit" or cmd=="exit" or cmd=="shutdown" or cmd=="reboot" ):
     self.done=True;
-    shutdown( self );
+    if ( cmd == "quit" or cmd == "exit" ):
+      shutdown( self, False,False );# Normal App exit to command line
+    else:
+      if ( cmd == "reboot" ):
+        shutdown( self, True, True  );# Pi System Shutdown with Reboot
+      else:
+        shutdown( self, True, False );# Pi System Shutdown
 
   elif ( cmd == "sump_connect" ):
     sump_connect(self);
@@ -1743,12 +2084,34 @@ def proc_cmd( self, cmd, parms ):
     self.vars["sump_acquisition_len"] = ( "%02x" % acq_len );
     print( "sump_acquisition_len = " + ( "%02x" % acq_len ));
 
+
+# "Arm_Normal","Arm_RLE","Acquire_Download",],
+  elif ( cmd == "acquire_download" or \
+         cmd == "download_acquire" or \
+         cmd == "download_normal"  or \
+         cmd == "download_rle"     or \
+         cmd == "download_acquire" or \
+         cmd == "download_rle_lossy"    ):
+    if ( self.acq_state == "arm_normal" ):
+      self.acq_state = "acquire_single";
+    elif ( self.acq_state == "arm_rle" ):
+      self.acq_state = "acquire_rle";
+
+    if ( cmd == "download_rle_lossy" ):
+      self.acq_state = "download_rle_lossy";
+    elif ( cmd == "download_rle" ):
+      self.acq_state = "download_rle";
+    elif ( cmd == "download_normal" ):
+      self.acq_state = "download_normal";
+
   elif ( cmd == "sump_arm"           or
          cmd == "sump_arm_rle"       or
          cmd == "sump_stop"          or
          cmd == "acquire_single"     or
          cmd == "acquire_normal"     or
          cmd == "acquire_continuous" or
+         cmd == "arm_normal"         or
+         cmd == "arm_rle"            or
          "acquire_rle" in cmd        or     
          cmd == "acquire_stop"          ):
     if ( cmd == "sump_arm"           or
@@ -1756,9 +2119,14 @@ def proc_cmd( self, cmd, parms ):
          cmd == "acquire_single"     or
          cmd == "acquire_normal"     or
          cmd == "acquire_continuous" or
+         cmd == "arm_normal"         or
+         cmd == "arm_rle"            or
          "acquire_rle" in cmd            ): 
       sump_arm(self, True );# Arm the hardware
-      if ( "acquire_rle" in cmd ): 
+#     if ( "acquire_rle" in cmd ): 
+      if ( "rle_lossy" in cmd ): 
+        self.acq_mode = "rle_lossy";
+      if ( "rle" in cmd ): 
         self.acq_mode = "rle";
       else:
         self.acq_mode = "nonrle";
@@ -1783,6 +2151,7 @@ def proc_cmd( self, cmd, parms ):
           trig_i = sump_dump_data(self);# Grab data from hardware 
         else:
           trig_i = sump_dump_rle_data(self);# Grab data from hardware 
+        self.trig_i = trig_i;
 
   # Group of OS commands pwd,mkdir,cd,ls,cp,vi
   elif ( cmd == "pwd" ):
@@ -1806,7 +2175,7 @@ def proc_cmd( self, cmd, parms ):
 #   rts += os.listdir( "*.ini" );
   elif ( cmd == "vi" ):
     try:
-      if ( self.os_sys == "Linux" ):
+      if ( self.os_sys == "Linux" or self.os_sys == "Darwin"):
         os.system('vi ' + parms[0] );
       else:
         os.system('notepad.exe ' + parms[0] );
@@ -1855,15 +2224,17 @@ def proc_cmd( self, cmd, parms ):
         draw_header( self,"ERROR: Save_Rename() : " + val1 + " " + rts );
 
 # elif ( cmd == "save_vcd" ):
-  elif ( cmd == "save_vcd" and self.acq_mode == "nonrle" ):
+  elif (( cmd == "save_vcd" or 
+          cmd == "save_vcd_full" or
+          cmd == "save_vcd_cursors" ) and self.acq_mode == "nonrle" ):
     print("save_vcd()");
     screen_flip( self );# Only thing changing is the popup selection
 #   sump_dump_data(self);# Grab data from hardware ( might be in CLI Mode )
     filename_txt = make_unique_filename( self, "sump2_", ".txt" );
     filename_vcd = make_unique_filename( self, "sump2_", ".vcd" );
-    draw_popup_msg(self,
-                   ["NOTE:","Saving capture to VCD file "+filename_vcd],1);
-    sump_save_txt(self, filename_txt, mode_vcd = True );
+#   draw_popup_msg(self,
+#                  ["NOTE:","Saving capture to VCD file "+filename_vcd],1);
+    sump_save_txt(self, filename_txt, mode_vcd = True, cmd = cmd );
     txt2vcd = TXT2VCD();# Instantiate Class for the VCD Conversion
     file_in = open( filename_txt, "r" );
     file_lines = file_in.readlines();
@@ -1895,16 +2266,20 @@ def proc_cmd( self, cmd, parms ):
     self.last_filesave = filename_vcd;
     rts = ["save_vcd() Complete " + filename_vcd ];
 
-  elif ( cmd == "save_vcd" and self.acq_mode == "rle" ):
+# elif ( cmd == "save_vcd" and \
+  elif (( cmd == "save_vcd" or 
+          cmd == "save_vcd_full" or
+          cmd == "save_vcd_cursors" ) and 
+         ( self.acq_mode == "rle" or self.acq_mode == "rle_lossy" ) ):
     print("save_rle_vcd()");
     screen_flip( self );# Only thing changing is the popup selection
 #   if ( self.mode_cli == True ):
 #     sump_dump_rle_data(self);# Grab data from hardware 
     filename_txt = make_unique_filename( self, "sump2_rle_", ".txt" );
     filename_vcd = make_unique_filename( self, "sump2_rle_", ".vcd" );
-    draw_popup_msg(self,
-                   ["NOTE:","Saving capture to VCD file "+filename_vcd],1);
-    sump_save_txt(self, filename_txt, mode_vcd = True );
+#   draw_popup_msg(self,
+#                  ["NOTE:","Saving capture to VCD file "+filename_vcd],1);
+    sump_save_txt(self, filename_txt, mode_vcd = True, cmd = cmd );
     txt2vcd = TXT2VCD();# Instantiate Class for the VCD Conversion
     file_in = open( filename_txt, "r" );
     file_lines = file_in.readlines();
@@ -1919,6 +2294,8 @@ def proc_cmd( self, cmd, parms ):
       for sig_obj in self.signal_list:
         if ( each == sig_obj.name ):
           nickname = sig_obj.nickname;
+          if ( nickname == "" ):
+            nickname = each;
       new_line += nickname + " ";
     vcd_lines = [new_line] + file_lines[1:];
     print("conv_txt2vcd()");
@@ -1974,6 +2351,7 @@ def proc_cmd( self, cmd, parms ):
     screen_flip( self );
     filename = make_unique_filename( self, "sump2_", ".jpg" );
     self.pygame.image.save( self.screen, filename );
+    print("save_jpg() : " + filename);
     draw_header( self,"save_jpg() : Saved " + filename );
     self.last_filesave = filename;
   elif ( cmd == "save_bmp" ):
@@ -1982,16 +2360,44 @@ def proc_cmd( self, cmd, parms ):
     screen_flip( self );
     filename = make_unique_filename( self, "sump2_", ".bmp" );
     self.pygame.image.save( self.screen, filename );
+    print("save_bmp() : " + filename);
     draw_header( self,"save_bmp() : Saved " + filename );
     self.last_filesave = filename;
   elif ( cmd == "save_png" ):
+    # Warning - on Pi red and green are swapped on PNG saves
     screen_erase( self );
     draw_screen( self );
     screen_flip( self );
     filename = make_unique_filename( self, "sump2_", ".png" );
     self.pygame.image.save( self.screen, filename );
+    print("save_png() : " + filename);
     draw_header( self,"save_png() : Saved " + filename );
     self.last_filesave = filename;
+
+#   # Workaround for Pi Pygame bug swapping Red and Green on PNG save
+#   # This requires PIL - not part of PyGame or Raspbian
+#   filename = make_unique_filename( self, "sump2_", ".bmp" );
+#   self.pygame.image.save( self.screen, filename );
+#   from PIL import Image;
+#   im = Image.open( filename );
+#   filename = make_unique_filename( self, "sump2_", ".png" );
+#   im.save( filename ) ;
+#   draw_header( self,"save_png() : Saved " + filename );
+#   self.last_filesave = filename;
+
+    # Workaround for Pi Pygame bug swapping Red and Green on PNG save
+    # This works, but takes a minute on just a 640x480 display
+#   img = self.pygame.surfarray.array3d( self.screen )
+#   img_copy = self.pygame.surfarray.array3d( self.screen )
+#   for y in range(0, self.screen_height ):
+#     for x in range(0, self.screen_width ):
+#       img_copy[x][y][0] = img[x][y][1];
+#       img_copy[x][y][1] = img[x][y][0];
+#   surf = self.pygame.surfarray.make_surface(img_copy);
+#   filename = make_unique_filename( self, "sump2_", ".png" );
+#   self.pygame.image.save( surf , filename );
+#   draw_header( self,"save_png() : Saved " + filename );
+#   self.last_filesave = filename;
 
   elif ( cmd == "font_larger" or cmd == "font_smaller" ):
     size = int( self.vars["font_size"] );
@@ -2036,11 +2442,14 @@ def proc_cmd( self, cmd, parms ):
     flush_surface_cache( self );
 
   # Check for "SUMP_Configuration" menu items and launch entry popup
-  elif ( cmd == "sump_trigger_delay" or
-         cmd == "sump_trigger_nth"   or
-         cmd == "sump_user_ctrl"     or
-         cmd == "sump_user_pattern0" or
-         cmd == "sump_user_pattern1" or
+  elif ( cmd == "sump_trigger_delay"   or
+         cmd == "sump_trigger_nth"     or
+         cmd == "sump_user_ctrl"       or
+         cmd == "sump_user_pattern0"   or
+         cmd == "sump_user_pattern1"   or
+         cmd == "sump_rle_autocull"    or
+         cmd == "sump_rle_gap_remove"  or
+         cmd == "sump_rle_gap_replace" or
          cmd == "sump_watchdog_time" 
        ): 
     name = cmd;
@@ -2104,21 +2513,19 @@ def proc_cmd( self, cmd, parms ):
                                        self.sample_start, value, direction  );
 
   elif ( cmd == "zoom_out" ):
-#   if ( self.zoom_x > 0.00001 ):
-#     print( self.popup_x );
-#     if ( self.popup_x != None ):
-#       sample = self.sample_start - sample_room // 4;
-    if ( True ):
-      self.prev_sample_start = self.sample_start;
-      self.prev_sample_stop  = self.sample_start + self.sample_room;
-      sample_room = self.sample_room * 2;
-      sample = self.sample_start - sample_room // 4;
-      if ( ( sample + sample_room ) < self.max_samples ):
-        if ( sample < 0 ): sample = 0;
-        self.sample_start = sample;
-        set_zoom_x( self, self.zoom_x / 2.0 );
-      else:
-        proc_cmd( self, "zoom_full", [] );
+# Warning routine appears twice, here and again for Mouse Wheel
+# search on ZOOM_OUT.
+# Make sure there are enough samples to our right, if not recalculate
+# the center sample position so that the zoom_out fits within avail samples
+    self.prev_sample_start = self.sample_start;
+    self.prev_sample_stop  = self.sample_start + self.sample_room;
+    sample_room = self.sample_room * 2;
+    sample = self.sample_start - sample_room // 4;
+    if ( ( sample + sample_room ) > self.max_samples ):
+      sample = self.max_samples - sample_room;
+    if ( sample < 0 ): sample = 0;
+    self.sample_start = int( sample );
+    set_zoom_x( self, self.zoom_x / 2.0 );
 
   elif ( cmd == "zoom_in" ):
     self.prev_sample_start = self.sample_start;
@@ -2191,6 +2598,15 @@ def proc_cmd( self, cmd, parms ):
       if ( sample_left  < 0                ): sample_left  = 0;
       if ( sample_right > self.max_samples ): sample_right = self.max_samples;
       proc_cmd( self, "crop_to", [str(sample_left), str( sample_right ) ] );
+
+  elif ( cmd == "crop_to_ini" ):
+    trig_i = self.trig_i;	   
+    sample_left  = trig_i - int( self.vars["sump_crop_pre_trig_len" ],16 );
+    sample_right = trig_i + int( self.vars["sump_crop_post_trig_len" ],16 );
+
+    if ( sample_left  < 0                ): sample_left  = 0;
+    if ( sample_right > self.max_samples ): sample_right = self.max_samples;
+    proc_cmd( self, "crop_to", [str(sample_left), str( sample_right ) ] );
 
   elif ( cmd == "zoom_full" ):
     proc_cmd( self, "zoom_to", ["0", str( self.max_samples ) ] );
@@ -2400,6 +2816,23 @@ def proc_cmd( self, cmd, parms ):
     for sig_obj in self.signal_list:
       if ( sig_obj.selected == True or cmd == "hide_all" ):
         sig_obj.hidden = True;
+
+    # New 2017_03_14. If a group parent was hidden, hide children too
+    for sig_obj in self.signal_list:
+      if ( sig_obj.selected == True ):
+        found_jk = False;
+        hier_level = -1;   # Keeps track of group nesting
+        for ( i , sig_obj ) in enumerate( self.signal_list ):
+          if ( found_jk == True ):
+            if ( sig_obj.hier_level <= hier_level ):
+              found_jk = False;# Found the endgroup so done
+              break;
+            else:
+              sig_obj.hidden = True;# Hide the children
+          if ( sig_obj == self.sig_obj_sel ):
+            found_jk = True; # Found our specified parent
+            hier_level = sig_obj.hier_level;
+
     sump_signals_to_vars( self );# Update sump variables
     screen_refresh( self );
 
@@ -2410,34 +2843,71 @@ def proc_cmd( self, cmd, parms ):
       if ( sig_obj.selected == True or cmd == "show_all" ):
         sig_obj.hidden  = False;
         sig_obj.visible = True;
+    # New 2017_03_14. If a group parent was show, show children too
+    for sig_obj in self.signal_list:
+      if ( sig_obj.selected == True ):
+        found_jk = False;
+        hier_level = -1;   # Keeps track of group nesting
+        for ( i , sig_obj ) in enumerate( self.signal_list ):
+          if ( found_jk == True ):
+            if ( sig_obj.hier_level <= hier_level ):
+              found_jk = False;# Found the endgroup so done
+              break;
+            else:
+              sig_obj.hidden = False;# Show the children
+              sig_obj.visible = True;
+          if ( sig_obj == self.sig_obj_sel ):
+            found_jk = True; # Found our specified parent
+            hier_level = sig_obj.hier_level;
+
+
     sump_signals_to_vars( self );# Update sump variables
     screen_refresh( self );
 
   # When "Trigger_Rising" or "Trigger_Falling" is selected, set the bit
   # in the sump variable and then update the signals to match.
-  # HERE4
   elif ( cmd == "trigger_rising" or cmd == "trigger_falling" or
-         cmd == "trigger_watchdog" ):
+#        cmd == "trigger_watchdog" ):
+         cmd == "trigger_remove"    or 
+         cmd == "trigger_remove_all"    or 
+         cmd == "trigger_watchdog" or 
+	 cmd == "trigger_and"      ):
     print("Setting new trigger");
+    trig_field = int( self.vars["sump_trigger_field"],16 );# Value
     # Find which signal is selected
     for sig_obj in self.signal_list:
       sig_obj.trigger = 0;
       if ( sig_obj.selected == True ):
         for i in range( 0, 32 , 1):
           if ( sig_obj.name == ( "event[%d]" % i ) ):
+            if ( cmd == "trigger_and" ):
+              self.vars["sump_trigger_type"] = "and_rising";
             if ( cmd == "trigger_rising" ):
               self.vars["sump_trigger_type"] = "or_rising";
             if ( cmd == "trigger_falling" ):
               self.vars["sump_trigger_type"] = "or_falling";
             if ( cmd == "trigger_watchdog" ):
               self.vars["sump_trigger_type"] = "watchdog";
-            self.vars["sump_trigger_field" ] = ("%08x" % (1<<i) );
-            sump_vars_to_signal_attribs( self );
-#           flush_surface_cache( self );
-            self.name_surface_valid = False;
-            screen_refresh( self );
 
-  # HERE5
+            if ( cmd == "trigger_falling" ):
+              trig_field = 0x00000000 | ( 1<<i );# Only 1 Falling Trigger Works
+              self.vars["sump_trigger_field" ] = ("%08x" % ( trig_field) );
+            elif ( cmd != "trigger_remove" and cmd != "trigger_remove_all"):
+              trig_field = trig_field | ( 1<<i );
+              self.vars["sump_trigger_field" ] = ("%08x" % ( trig_field) );
+            elif ( cmd == "trigger_remove_all" ):
+              trig_field = 0x00000000;
+              self.vars["sump_trigger_field" ] = ("%08x" % ( trig_field) );
+            else:	       
+              trig_field = trig_field & ~( 1<<i );
+              self.vars["sump_trigger_field" ] = ("%08x" % ( trig_field) );
+            print("%08x" % trig_field );
+
+#           flush_surface_cache( self );
+    sump_vars_to_signal_attribs( self );
+    self.name_surface_valid = False;
+    screen_refresh( self );
+
   elif ( cmd == "set_pattern_0" or cmd == "set_pattern_1" or \
          cmd == "clear_pattern_match" ):
     # Find which signal is selected
@@ -2846,12 +3316,31 @@ def draw_header( self, txt ):
     txt = (": "+txt );
   if ( self.mode_cli == True ):
     return;
-  uut_name = self.vars["uut_name" ];
+  
+  if ( self.vcd_import == True ):
+    uut_name = self.vcd_name;
+  else:
+    uut_name = self.vars["uut_name" ];
+
+  if ( self.rle_lossy == True ):
+    uut_name += " RLE_LOSSY";
   if ( self.fatal_msg != None ):
-    uut_name = "DEMO Mode :";
-    txt = self.fatal_msg;
-  self.pygame.display.set_caption( \
-       "SUMP2 " + self.vers + " (c) 2016 BlackMesaLabs : "+uut_name+" "+txt);
+    uut_name = "Software DEMO Mode :";
+    txt = uut_name + " " + self.fatal_msg;
+  msg ="SUMP2 " + self.vers + " (c) 2018 BlackMesaLabs : "+uut_name+" "+txt;
+# msg ="SUMP2 " + self.vers + " (c) 2017 BlackMesaLabs : "+txt;
+  self.pygame.display.set_caption( msg );
+
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    # Pi display header at top of surface since full screen
+    msg += "                    ";# Erase old text that was wider
+    txt = self.font.render( msg , True, self.color_fg, self.color_bg );
+    y1 = self.txt_height // 2; # Gap from top border
+    x1 = self.txt_width;    # Gap from left border
+    self.screen.blit(txt, (x1,y1 ));
+    screen_flip( self );
+
   if ( self.gui_active == True ):
     import pygame;
     pygame.event.get();# Avoid "( Not Responding )"
@@ -3003,8 +3492,11 @@ def draw_popup_box( self, x1,y1, txt_list ):
       txt = self.font.render( " "+each+" ", True, self.color_fg,self.color_bg );
       w = txt.get_width();# Calculate the Maximum String Width in pels
   h = len ( txt_list ) * self.txt_height + ( self.txt_height );
-# w = w + ( self.txt_height/2 );
   w = w + ( self.txt_height//2 );
+
+# if ( ( x1 + w ) > self.screen_width ):
+#   x1 -= w;
+#   return False;
 
   # Make all the text the same width by padding spaces 
   new_txt_list = [];
@@ -3019,8 +3511,6 @@ def draw_popup_box( self, x1,y1, txt_list ):
   self.popup_w = w;
 
   # Now draw txt_list inside the box
-# y = y1 + ( self.txt_height / 2 ); 
-# x = x1 + ( self.txt_height / 4 );
   y = y1 + ( self.txt_height // 2 ); 
   x = x1 + ( self.txt_height // 4 );
 
@@ -3032,6 +3522,7 @@ def draw_popup_box( self, x1,y1, txt_list ):
     txt = self.font.render( each, True, self.color_fg, self.color_bg );
     self.screen.blit( txt , ( x,y ) );
     y = y + self.txt_height;
+# return True;
   return;
 
 
@@ -3070,44 +3561,45 @@ def get_popup_sel( self ):
 # Find a monospaced font to use
 def get_font( self , font_name, font_height ):
   log( self, ["get_font() " + font_name ] );
-# print "get_font()";
-  import fnmatch;
-# font_name = "khmerossystem";
-# font_name = "dejavusansmono";
-  font_height = int( font_height, 20 ); # Conv String to Int
-  font_list = self.pygame.font.get_fonts(); # List of all fonts on System
-  self.font_list = [];
-  for each in font_list:
-    log( self, ["get_font() : Located Font = " + each ] );
-    # Make a list of fonts that might work based on their name
-    if ( ( "mono"    in each.lower()    ) or
-         ( "courier" in each.lower()    ) or
-         ( "fixed"   in each.lower()    )    ): 
-      self.font_list.append( each );
- 
-  if ( font_name == None or font_name == "" ):
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    # Pi Specific
+    font_size = int(font_height);
+    font = self.pygame.font.Font('freesansbold.ttf', font_size );
+    txt = font.render("4",True, ( 255,255,255 ) );
+    self.txt_width  = txt.get_width();
+    self.txt_height = txt.get_height();
+  else:
+    import fnmatch;
+    font_height = int( font_height, 20 ); # Conv String to Int
     font_list = self.pygame.font.get_fonts(); # List of all fonts on System
+    self.font_list = [];
     for each in font_list:
       log( self, ["get_font() : Located Font = " + each ] );
-    ends_with_mono_list = fnmatch.filter(font_list,"*mono");
-    if  ends_with_mono_list :
-      font_name = ends_with_mono_list[0];# Take 1st one
-#     log( self, ["get_font() : Using   Font = " + font_name ] );
-    else:
-      font_name = self.font_list[0]; # Take 1st one
-#     log( self, ["get_font() : Using   Font = " + font_name ] );
-  try:
-    font = self.pygame.font.SysFont( font_name , font_height );
-#   log( self, ["get_font() : Using   Font = " + font_name ] );
-  except:
-    font = self.pygame.font.Font( None , font_height );# Default Pygame Font
-#   log( self, ["get_font() : Using Default Font"] );
+      # Make a list of fonts that might work based on their name
+      if ( ( "mono"    in each.lower()    ) or
+           ( "courier" in each.lower()    ) or
+           ( "fixed"   in each.lower()    )    ):
+        self.font_list.append( each );
 
-  # Calculate Width and Height of font for future reference
-# txt = font.render("X",True, ( 255,255,255 ) );
-  txt = font.render("4",True, ( 255,255,255 ) );
-  self.txt_width  = txt.get_width();
-  self.txt_height = txt.get_height();
+    if ( font_name == None or font_name == "" ):
+      font_list = self.pygame.font.get_fonts(); # List of all fonts on System
+      for each in font_list:
+        log( self, ["get_font() : Located Font = " + each ] );
+      ends_with_mono_list = fnmatch.filter(font_list,"*mono");
+      if  ends_with_mono_list :
+        font_name = ends_with_mono_list[0];# Take 1st one
+      else:
+        font_name = self.font_list[0]; # Take 1st one
+    try:
+      font = self.pygame.font.SysFont( font_name , font_height );
+    except:
+      font = self.pygame.font.Font( None , font_height );# Default Pygame Font
+
+    # Calculate Width and Height of font for future reference
+    txt = font.render("4",True, ( 255,255,255 ) );
+    self.txt_width  = txt.get_width();
+    self.txt_height = txt.get_height();
   return font;
 
 
@@ -3121,7 +3613,7 @@ def screen_refresh( self ):
     draw_screen( self ); # Draw the new stuff
 #   draw_header( self,"screen_refresh()..." );
     screen_flip( self ); # and xfer from pending to active
-#   draw_header( self,"" );
+    draw_header( self,"" );
   return;
 
 
@@ -3161,13 +3653,19 @@ def draw_screen( self ):
 # v_scale = 1.25;# This provides a proportional gap between text lines
 # v_scale = 1.10;# This provides a proportional gap between text lines
   v_scale = 1.25;# This provides a proportional gap between text lines
-  bot_region_h = 5;
+# bot_region_h = 5;
+  bot_region_h = 6;
   self.sig_name_stop_y = screen_h - ( bot_region_h * self.txt_height );
   self.sig_value_stop_y = self.sig_name_stop_y;
 
   # 1st Display the Net Names
 # y = self.txt_height / 2; # Gap from top border
-  y = self.txt_height // 2; # Gap from top border
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    y = self.txt_height * 2; # Pi top header
+  else:
+    y = self.txt_height // 2; # Gap from top border
+
   x = self.txt_width;     # Gap from left border
   self.sig_name_start_x = x;
   self.sig_name_start_y = y;
@@ -3199,6 +3697,7 @@ def draw_screen( self ):
   self.sig_bot = self.sig_top + i - 1;
 # print "vis_sigs = " + str( vis_sigs );
 
+  self.signal_list_cropped = tuple( self.signal_list_cropped );# List->Tuple
 
   # 1st : Display the signal names on the left
   # for sig_obj in self.signal_list_cropped:
@@ -3210,7 +3709,8 @@ def draw_screen( self ):
     surface.fill( self.color_bg );
     if ( self.debug ):
       print( "name_surface_valid==False");
-    for ( i , sig_obj ) in enumerate( self.signal_list ):
+#   for ( i , sig_obj ) in enumerate( self.signal_list ):
+    for ( i , sig_obj ) in enumerate( tuple(self.signal_list) ):
       if ( 1 == 1 ):
         # Binary Signal? If standalone, no rip, if exp, display (n) bit pos
         if ( sig_obj.bits_total == 1 or sig_obj.bits_total == 0 ):
@@ -3243,6 +3743,8 @@ def draw_screen( self ):
           exp_str = "==0 ";# Pattern of 0
         elif ( sig_obj.trigger ==  3 ):
           exp_str = "==1 ";# Pattern of 1
+        elif ( sig_obj.trigger ==  +4 ):
+          exp_str = "=1  ";# AND Rising
         elif ( sig_obj.data_enable == True ):
           exp_str = "=== ";
 
@@ -3315,6 +3817,11 @@ def draw_screen( self ):
         if ( sig_obj.visible == True ):
           if ( c_val < len( sig_obj.values ) ):
             val = sig_obj.values[c_val]; 
+            # VV
+            if   ( val == True ):
+              val = "1";
+            elif ( val == False ):
+              val = "0";
           else:
             val = "X";
           y1  = sig_obj.y;
@@ -3361,10 +3868,19 @@ def draw_screen( self ):
     None;
   else:
     # print("Rendering samples.");
+#   line_list_of_lists = [];
+#   for sig_obj in self.signal_list_cropped:
+#     if ( sig_obj.format == "bin" ):
+#       sig_obj.values = [True if x=="1" else False for x in sig_obj.values];
+
+    import time;
+    start_time = time.time();
     surface.fill( self.color_bg );
     if ( self.debug ):
       print( "value_surface_valid==False");
     # Grab 4x the number of samples needed to fill display
+    # this greatly speeds up scrolling in time back and forth, but only when
+    # there aren't that many samples to draw.
     stop_4x = ( self.sample_stop-sample_start)*4 + sample_start;
     stop_1x = ( self.sample_stop-sample_start)   + sample_start;
     if ( stop_4x > self.max_samples ):
@@ -3376,10 +3892,6 @@ def draw_screen( self ):
     if ( ( self.sample_stop-sample_start) > 1000 ):
       stop_4x = stop_1x;
 #     print("NOTE: 4x look-ahead rendering disabled");
-    
-#   print("Oy");
-#   print( sample_start );
-#   print( stop_tx );
 
     # Rip thru all the signals ( vertically cropped ) and display visible ones
     import time;
@@ -3387,29 +3899,21 @@ def draw_screen( self ):
     perc_updates_en = True;
     fast_render = False;
     no_header = True;
-    if ( self.sample_room > 50000 ):
+#   if ( self.sample_room > 50000 ):
+    if ( self.sample_room > 1000 ):
+#     print("Enabling fast_render engine");
       fast_render = True;
     for sig_obj in self.signal_list_cropped:
       # Save time by not rendering DWORDs outside of viewport if RLE capture
       # Does this work without SUMP displaying VCD files??
       # Note: This didn't work after cropping and doesnt buy much, so removed
       render = True;
-#     if ( self.bd != None ):
-#       ram_dwords = self.sump.cfg_dict['ram_dwords'];
-#       for j in range( 0, ram_dwords, 1 ):
-#         if ( sig_obj.name == "dword[%d]" % j ):
-#           if ( self.dwords_stop  < sample_start or
-#                self.dwords_start > stop_4x  or 
-#                render_max_time > 10 ):
-#             print("Culling "+sig_obj.name);
-#             render = False;
-      # This simpler version of above will not render DWORDs if any signal
-      # prior took more than 5 seconds.
+
+      # Don't render DWORDs if any prior signal took more than 2 seconds   
       if ( self.bd != None ):
         ram_dwords = self.sump.cfg_dict['ram_dwords'];
         for j in range( 0, ram_dwords, 1 ):
           if ( sig_obj.name == "dword[%d]" % j ):
-#           if ( render_max_time > 5 ):
             if ( render_max_time > 2 ):
               print("Culling "+sig_obj.name);
               render = False;
@@ -3435,101 +3939,150 @@ def draw_screen( self ):
             hdr_txt = "Fast Rendering ";
           if ( no_header == False ):
             draw_header( self,hdr_txt+sig_obj.name );
-          # CRITICAL LOOP
-#         line_list = [];
+
           k = 0; perc_cnt = 0;
           perc5 = total_count * 0.05;
-#         for (i,val) in enumerate( sig_obj.values[sample_start:stop_4x+1] ):
-
           # Use Python set() function to determine if all samples are same
           samples_diff=(len(set(sig_obj.values[sample_start:stop_4x+1]))!=1);
-          
-          for val in sig_obj.values[sample_start:stop_4x+1]:
-            k +=1;
-            if ( k > perc5 and perc_updates_en == True ):
-              k = 0;
-              perc_cnt += 5;
-              if ( no_header == False ):
-                draw_header(self,hdr_txt+sig_obj.name+" "+str(perc_cnt)+"%");
-              if ( fast_render==False and (time.time()-render_start_time)>2):
-                print("Enabling fast_render engine");
-                fast_render = True;
-              if ( (time.time()-render_start_time)< 0.2):
-                no_header = True;
-              else:
-                no_header = False;
+          fast_list = []; 
+          line_list = [];
+          threshold_too_many_samples = 5000;
+          if ( total_count > threshold_too_many_samples ):
+            perc_updates_on = True;
+          else:
+            perc_updates_on = False;
+          if ( sig_obj.format == "bin" ):
+            format_bin = True;# Saves 300ms doing this string compare once
+          else:
+            format_bin = False;
 
-#           perc = ( 100 * i ) // total_count;
-#           if ( perc >= next_perc and perc_updates_en == True ):
-#             draw_header(self,"Rendering "+sig_obj.name+" "+str( perc )+"%");
-#             next_perc += 5;# Next 5%, this counts 0,5,10,...95
-#             if ( fast_render==False and (time.time()-render_start_time)>2):
-#               print("Enabling fast_render engine");
-#               fast_render = True;
+          # TIME CRITICAL LOOP of going thru each sample in time
+          for val in tuple(sig_obj.values[sample_start:stop_4x+1]):
+            if ( perc_updates_on ):
+              perc_updates_en = True;
+              k +=1;# This takes 400ms of the 2.4 total, so bypass for small
+#             if ( k > perc5 and perc_updates_en == True ):
+              if ( k > perc5 ):
+                k = 0;
+                perc_cnt += 5;
+                if ( no_header == False ):
+                  draw_header(self,hdr_txt+sig_obj.name+" "+str(perc_cnt)+"%");
+                if ( fast_render==False ):
+                  if ((time.time()-render_start_time)>2):
+                    print("Enabling fast_render engine");
+                    fast_render = True;
+                if ( (time.time()-render_start_time)< 0.2):
+                  no_header = True;
+                else:
+                  no_header = False;
 
             # Only draw_sample() if integer portion of X has changed since last
             # this handles zoom_full case of zoom_x < 1.0 to minimize drawing
-            if ( True ):
-              if ( sig_obj.format == "unsigned" ):
-                try:
-                  val = int( val, 16 );
-                except:
-                  val = 0;
-                val = "%d" % val;
-              if ( sig_obj.format == "signed" ):
-                try:
-                  val = int( val, 16 );
-                except:
-                  val = 0;
-                # For 8bit number if > 127, substract 256 from it to make neg
-                # ie 0xFF becomes -1, 0xFE becomes -2
-                if ( val > self.math.pow(2, sig_obj.bits_total-1) ):
-                  val -= int(self.math.pow(2, sig_obj.bits_total));
-                val = "%d" % val;
-              if ( sig_obj.format != "bin" or fast_render == False ):
-                (last_trans_x,last_width) = draw_sample( self, surface, \
-                    val,val_last,last_trans_x,last_width,sig_obj.format,x,y);
-              elif ( sig_obj.format == "bin" and fast_render == True and \
-                     samples_diff == True ):
+            if ( True  ):
+              if ( format_bin and fast_render and samples_diff ):
                 # Draw "_/ \___/   \___" lines for binary format
                 # fast_render doesnt draw every sample but instead draws lines
                 # whenever sample value changes. 3x faster, but leaves voids
                 if ( val != val_last ):
-                  x1 = int(x+1);
-                  x2 = int(x+1);
+                  x1 = int(x)+1;
+                  x2 = x1;
                   y1 = y + 2;
                   y2 = y + self.txt_height - 2;
-                  if ( val == "1" ):
-                    self.pygame.draw.line(surface,self.color_fg,
-                       (x_last,y_last),(x2,y2));
+                  if ( val ):   # VV
+#                 if ( val == "1" ):
+#                   self.pygame.draw.line(surface,self.color_fg,
+#                      (x_last,y_last),(x2,y2));
+                    line_list += [ (x_last,y_last),(x2,y2) ];
                     x_last = x1;
                     y_last = y1;
                   else:
-                    self.pygame.draw.line(surface,self.color_fg,
-                       (x_last,y_last),(x1,y1));
+#                   self.pygame.draw.line(surface,self.color_fg,
+#                      (x_last,y_last),(x1,y1));
+                    line_list += [ (x_last,y_last),(x1,y1) ];
                     x_last = x2;
                     y_last = y2;
                   # Vertical Line
-                  self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2));
-                  # line_list += [(x1,y1),(x2,y2)];# 8x slower. GoFigure
+#                 self.pygame.draw.line(surface,self.color_fg,(x1,y1),\
+#                                       (x2,y2));
+                  line_list += [(x1,y1),(x2,y2)];# 8x slower. GoFigure
+              # If all samples are same, just draw a single line of 1 or 0
+              if ( format_bin and fast_render and not samples_diff ): 
+                if ( sample == sample_start ):
+                  x1 = int(x)+1;
+#                 x2 = x1 + self.sample_room;# artifacts on zoom_out too far
+                  x2 = x1 + int(float(stop_4x-sample_start) * self.zoom_x );
+                  y1 = y + 2;
+                  y2 = y + self.txt_height - 2;
+                  if ( val ):   # VV
+#                   self.pygame.draw.line(surface,self.color_fg,
+#                      (x1,y1),(x2,y1));
+                    line_list += [ (x1,y1),(x2,y1) ];
+                  else:
+#                   self.pygame.draw.line(surface,self.color_fg,
+#                      (x1,y2),(x2,y2));
+                    line_list += [ (x1,y2),(x2,y2) ];
+                  break;# Save time and don't iterate thru all static samples
+
+              elif ( format_bin ):
+                # Saved 600ms ( from 3.4 to 2.8 ) by avoiding func call
+                if ( val != val_last ):
+                  x1 = int(x+1);
+                  x2 = x1;
+                  y1 = y + 2;
+                  y2 = y + self.txt_height - 2;
+                  if ( val == "0" ):
+                    y1,y2 = y2,y1;# Swap to make direction correct
+                  line_list += [ (x1,y1),(x2,y2) ];
+#                 self.pygame.draw.line(surface,self.color_fg,(x1,y1),\
+#                                       (x2,y2),1);
+#               if ( val == "1" ):
+                if ( val ):   # VV
+                  x1 = int(x+1);
+                  x2 = int(x+1 + self.zoom_x);
+                  y1 = y + 2;
+                  y2 = y1;
+                  line_list += [ (x1,y1),(x2,y2) ];
+#                 self.pygame.draw.line(surface,self.color_fg,(x1,y1),\
+#                                       (x2,y2),1);
+                else:
+                  x1 = int(x+1);
+                  x2 = int(x+1 + self.zoom_x);
+                  y1 = y + self.txt_height - 2;
+                  y2 = y1;
+                  line_list += [ (x1,y1),(x2,y2) ];
+#                 self.pygame.draw.line(surface,self.color_fg,(x1,y1),\
+#                                       (x2,y2),1);
+#             elif ( sig_obj.format != "bin" or fast_render == False ):
+              else:
+#               print( sig_obj.name );# HERE
+                (last_trans_x,last_width) = draw_sample( self, surface, \
+                    val,val_last,last_trans_x,last_width, \
+                    sig_obj.format,format_bin, x,y);
               val_last = val;
             x += self.zoom_x;
             sample +=1;
             # Remember x location of last sample drawn
             if ( sample == self.sample_stop ):
               self.sig_value_stop_x  = x;
+          # END OF TIME CRITICAL LOOP
 
-#         if ( len( line_list ) > 0 ):
-#           self.pygame.draw.lines(surface,self.color_fg,False,line_list,1);
+          if ( len( line_list ) > 0 ):
+            self.pygame.draw.lines(surface,self.color_fg,False,line_list,1);
+          if ( perc_updates_on ):
+            refresh(self);
+
           render_stop_time = time.time();
           if ( ( render_stop_time - render_start_time ) > render_max_time ):
             render_max_time = render_stop_time - render_start_time;
-          if ( ( render_stop_time - render_start_time ) < 2 ):
-            perc_updates_en = False;# Don't update if rendering in less 2sec
-          else:
-            print(sig_obj.name+" %.2f Seconds" % \
-                  (render_stop_time-render_start_time )  );
-          if ( fast_render==False and (render_stop_time-render_start_time)>3):
+
+#         if ( ( render_stop_time - render_start_time ) < 2 ):
+#           perc_updates_en = False;# Don't update if rendering in less 2sec
+#         else:
+#           print(sig_obj.name+" %.2f Seconds" % \
+#                 (render_stop_time-render_start_time )  );
+
+#         if ( fast_render==False and (render_stop_time-render_start_time)>3):
+          if ( fast_render==False and (render_stop_time-render_start_time)>2):
             print("Enabling fast_render engine");
             fast_render = True;
 
@@ -3537,9 +4090,7 @@ def draw_screen( self ):
         # Remember whats in the value_surface start:stop samples
         self.surface_start = sample_start;
 
-        
-
-        # Hack fix for strange performance bug. When viewing all samples, the
+        # Fix for strange performance bug. When viewing all samples, the
         # variable sample is less than self.sample_stop and this surface never
         # gets cached. Normally sample is greater than self.sample_stop which
         # support fast scrolling when zoomed in.
@@ -3551,13 +4102,32 @@ def draw_screen( self ):
           self.surface_stop  = self.sample_stop;
         else:
           self.surface_stop  = sample;
+#   if ( len( line_list_of_lists ) > 0 ):
+#     for each in line_list_of_lists:
+#       self.pygame.draw.lines(surface,self.color_fg,False,each,1);
 
 #   print("Rendering samples done");
     if ( fast_render == True ):
       txt = "Fast Rendering Complete"; 
     else:
       txt = "Full Rendering Complete"; 
-    draw_header( self, txt );
+    stop_time = time.time();
+    total_time = stop_time - start_time;
+#   if ( True ):
+    if ( total_time > 2 ):
+      print("Render Time = %.1f" % total_time );
+      draw_header( self, txt );
+    if ( self.display_hints and total_time > 15 ):
+      print("I noticed rendering took a REALLY long time. That must hurt.");
+      print("Here are some tips:");
+      print(" 1) Limit the number of RLE samples that will get decompressed");
+      print("    This will limit your samples to 512K pre and post trigger");
+      print("    sump_rle_pre_trig_len  = 00080000 ");
+      print("    sump_rle_post_trig_len = 00080000 ");
+      print(" 2) Use cursors to either zoom_in or crop to a smaller region.");
+      print(" 3) Check your DRAM usage. A couple of million SUMP samples   ");
+      print("    can easily use up a couple of Gigabytes of DRAM.          ");
+      self.display_hints = False;# Only display this once per session
      
   x = self.sig_value_start_x;
   y = self.sig_value_start_y;
@@ -3595,16 +4165,12 @@ def draw_screen( self ):
         # txt = cur_obj.name;# ie "Cursor1"
         c_val = cur_obj.sample; # Display Location Instead
         c_mult = float( self.vars["cursor_mult"] );
-#       c_val  *= c_mult;# For converting to time units instead of samples
-
-#       txt = " " + str( c_val ) + " " + self.vars["cursor_unit"] + " ";
         txt = " " + str( c_val ) +                                  " ";
         if ( cur_obj.selected == True ):
           self.font.set_bold( True );
         txt = self.font.render( txt , True, self.color_fg, self.color_bg );
         if ( cur_obj.selected == True ):
           self.font.set_bold( False );
-#       x1 -= txt.get_width()/2;
         x1 -= int( txt.get_width()/2 );
         self.screen.blit(txt, ( x1, cur_obj.y ) );
   
@@ -3632,6 +4198,14 @@ def draw_screen( self ):
     x2   = self.sig_value_stop_x;
 
 
+  # Calculate the time unit per sample
+  if ( self.bd != None ):
+    freq_mhz = self.sump.cfg_dict['frequency'];
+  else:
+    freq_mhz = 100.0;# HACK PLACEHOLDER ONLY !!
+  c_mult = 1000.0 / freq_mhz;
+
+
   # 5th calculate where to put the measurement text, centered between markers
   # or edge of the screen and on-screen-marker. Only display if a cursor is vis
   if (  ( c1_sample >= sample_start and c1_sample <= self.sample_stop ) or \
@@ -3642,56 +4216,84 @@ def draw_screen( self ):
     self.pygame.draw.line(self.screen,self.color_fg,(x1,y1),(x2,y2),1);
    
     # Now draw the measurement text for the cursor
-#   y = y1 - (self.txt_height/2);
     y = y1 - int(self.txt_height/2);
     c2c1_delta =  float(c2_sample-c1_sample);
-#   c_mult = float( self.vars["cursor_mult"] );
-#   c2c1_delta *= c_mult;
-    if ( self.bd != None ):
-      freq_mhz = self.sump.cfg_dict['frequency'];
-    else:
-      freq_mhz = 100.0;# HACK PLACEHOLDER ONLY !!
-    c_mult = 1000.0 / freq_mhz;
     if ( self.undersample_data == True ):
       c2c1_delta *= self.undersample_rate;
 
     c2c1_delta_ns = c2c1_delta * float(c_mult);
+    # Smart Time measurement scale between ns,us and ms
+    if ( c2c1_delta_ns   > 1000000 ):
+      cursor_units = "ms";
+      c2c1_delta_ns = c2c1_delta_ns / 1000000.0;
+    elif ( c2c1_delta_ns > 1000 ):
+      cursor_units = "us";
+      c2c1_delta_ns = c2c1_delta_ns / 1000.0;
+    else:
+      cursor_units = "ns";
+
     c2c1_delta    = int(c2c1_delta);
     c2c1_delta_str = str(c2c1_delta);
 
-#   txt = " " + str( c2c1_delta ) + " " + self.vars["cursor_unit"] + " ";
-#   txt = " " + str( c2c1_delta_ns ) + " ns, " + str( c2c1_delta ) + " clocks";
-#   txt = " " + ("%.3f" % c2c1_delta_ns ) + " ns, " + \
-#     str( c2c1_delta ) + " clocks";
-    delta_str = locale.format('%.3f', c2c1_delta_ns, True );
+    delta_str = locale.format('%.1f', c2c1_delta_ns, True );
 
     # For undersampled data, label measurements with "~" for approximate
     if ( self.undersample_data == True ):
       delta_str      = "~"+delta_str;
       c2c1_delta_str = "~"+c2c1_delta_str;
 
-    txt = " " + delta_str + " ns, " + c2c1_delta_str + " clocks";
-
-#   txt = " " + delta_str + " ns, " + str( c2c1_delta ) + " clocks";
+    if ( self.rle_lossy == True ):
+      txt = " RLE_LOSSY ~"+delta_str+"~ "+cursor_units+", ~"+ \
+              c2c1_delta_str+"~ clocks";
+    else:
+      txt = " "+delta_str+""+cursor_units+", "+c2c1_delta_str+" clocks";
 
     txt = self.font.render( txt, True, self.color_fg, self.color_bg );
     w = txt.get_width();
     h = self.txt_height;
     # If the width of text is less than the space between cursors, display
-    # between, otherwise, display to the right of rightmost cursor
-    if ( w < ( x2-x1 ) ):
-#     x = x1 + ( x2-x1 )/2 - (w/2);
+    # between, otherwise, display to the right of rightmost cursor if it fits
+    # or left of leftmost if it doesn't fit.
+    small_gap =  self.txt_width;# Small Gap 
+    if ( (w + small_gap) < ( x2-x1 ) ):
       x = x1 + int(( x2-x1 )/2) - int(w/2);
     else:
       x = x2 + self.txt_width;
+      if ( ( x+w ) > self.screen_width ):
+        x = min(x1,x2) - ( w + small_gap );# Draw left of leftmost cursor
     self.pygame.draw.rect( self.screen, self.color_bg ,(x,y,w,h), 0);
     self.screen.blit(txt, ( x, y ) );
+
+  # 5 1/2 Draw Time scales ie "500.5us of 2.4ms" above the sample range
+  time_width_ns_list  = [];
+  time_width_ns_list += [ float( self.sample_room ) * float( c_mult ) ];
+  time_width_ns_list += [ float( self.max_samples ) * float( c_mult ) ];
+  for (i,each) in enumerate( time_width_ns_list ):
+    if ( each > 1000000 ):
+      each_time = each / 1000000.0;
+      each_unit = "ms";
+    elif ( each > 1000 ):
+      each_time = each / 1000.0;
+      each_unit = "us";
+    else:
+      each_time = each;
+      each_unit = "ns";
+    if ( i == 0 ):
+      txt_str = locale.format('%.1f', each_time, True )+""+each_unit+" of ";
+    else:
+      txt_str += locale.format('%.1f', each_time, True )+""+each_unit;
+  x =  self.txt_width;# Small Gap from left border
+  y1 = self.cursor_list[1].y;
+  txt_str = self.font.render( txt_str, True, self.color_fg, self.color_bg );
+  self.screen.blit(txt_str, ( x, y1 ) );
+    
 
   # 6th Draw the sample viewport dimensions 
   #  Example: 100-200 of 0-1024. Make the width 1024-1024 so it doesnt change
   txt1 = str(sample_start)+"-"+str(self.sample_stop);
   txt2 = str(     0      )+"-"+str(self.max_samples);
-  txt3 = txt2 + " : " + txt1;
+# txt3 = txt2 + " : " + txt1;
+  txt3 = txt1 + " of " + txt2;
 # txt1 = self.font.render( txt1, True, self.color_fg, self.color_bg );
 # txt2 = self.font.render( txt2, True, self.color_fg, self.color_bg );
   txt3 = self.font.render( txt3, True, self.color_fg, self.color_bg );
@@ -3702,7 +4304,7 @@ def draw_screen( self ):
 # self.screen.blit(txt1, ( x, y1 ) );
 # self.screen.blit(txt2, ( x, y2 ) );
 # self.screen.blit(txt3, ( x, y2 ) );
-# print (str(self.max_samples));# HERE13
+# print (str(self.max_samples));# 
 
   y = self.screen_height - int(self.txt_height * 1.5 );
   x = self.sig_name_start_x;
@@ -3812,12 +4414,37 @@ def draw_screen( self ):
 # are transitioning, display nothing.
 # CRITICAL FUNCTION
 def draw_sample(self,surface,val,val_last,last_transition_x,last_width, \
-                format,x,y):
+                format,format_bin, x,y):
   if ( self.gui_active == False ):
     return;
 
+  # Draw "_/ \___/   \___" lines for binary format
+# if ( format == "bin" ):
+# if ( format_bin ):
+#   x = x + 1; # Align transition with hex transition spot
+#   if ( val == "0" ):
+#     x1 = int(x);
+#     x2 = int(x + self.zoom_x);
+#     y1 = y + self.txt_height - 2;
+#     y2 = y1;
+#     self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
+#   elif ( val == "1" ):
+#     x1 = int(x);
+#     x2 = int(x + self.zoom_x);
+#     y1 = y + 2;
+#     y2 = y1;
+#     self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
+#   if ( val != val_last ):
+#     x1 = int(x);
+#     x2 = int(x);
+#     y1 = y + 2;
+#     y2 = y + self.txt_height - 2;
+#     self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
+  if ( False ):
+    pass;
+
   # Draw "<012345678><><>" for hex format
-  if ( format == "hex" or format == "unsigned" or format == "signed" ):
+  elif ( format == "hex" or format == "unsigned" or format == "signed" ):
     # display Hex if diff from last time OR last time there wasnt room
     # Note: Dramatic speedup (2x) by not doing this render here on hex
     # txt = self.font.render( val , True, self.color_fg );
@@ -3843,10 +4470,8 @@ def draw_sample(self,surface,val,val_last,last_transition_x,last_width, \
         last_transition_x = x;
       free_space_x = x + self.zoom_x - last_transition_x;
       if ( txt_width+5 < free_space_x ):
-#       x3 = last_transition_x + int(free_space_x/2) - int(txt_width/2);
         x3 = last_transition_x + int(free_space_x//2) - int(txt_width//2);
         txt = self.font.render( val , True, self.color_fg );
-#       surface.blit(txt, ( x3 , y ));
         surface.blit(txt, ( x3 , y+1 ));
    
       # If current sample is different than last, draw transition X
@@ -3870,27 +4495,6 @@ def draw_sample(self,surface,val,val_last,last_transition_x,last_width, \
       y1 = y + self.txt_height - 2; y2 = y1;
       self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
 
-  # Draw "_/ \___/   \___" lines for binary format
-  if ( format == "bin" ):
-    x = x + 1; # Align transition with hex transition spot
-    if ( val == "0" ):
-      x1 = int(x);
-      x2 = int(x + self.zoom_x);
-      y1 = y + self.txt_height - 2;
-      y2 = y1;
-      self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
-    elif ( val == "1" ):
-      x1 = int(x);
-      x2 = int(x + self.zoom_x);
-      y1 = y + 2;
-      y2 = y1;
-      self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
-    if ( val != val_last ):
-      x1 = int(x);
-      x2 = int(x);
-      y1 = y + 2;
-      y2 = y + self.txt_height - 2;
-      self.pygame.draw.line(surface,self.color_fg,(x1,y1),(x2,y2),1);
   return (last_transition_x,last_width);
 
 
@@ -3988,9 +4592,11 @@ def expand_signal_nib2bin( sig_obj ):
     new_bit.is_expansion = True;
     for each in sig_obj.values:
       if ( (int( each, 16 ) & bit_val ) == 0 ):
-        bit = "0";
+#       bit = "0";
+        bit = False;# VV
       else:
-        bit = "1";
+#       bit = "1";
+        bit = True;# VV
       new_bit.values.append( bit );
     new_signals.append( new_bit );
 #   bit_val = bit_val / 2;
@@ -4216,7 +4822,6 @@ def save_format( self, file_name, selected_only ):
     if ( sig_obj.nickname != "" ):
       attribs += " -nickname " + sig_obj.nickname;
    
-# HERE9
     rts = hier_str + sig_obj.hier_name + "/" + sig_obj.name + " " + attribs;
     if ( selected_only == False or each.selected == True ):
 #     file_out.write( rts + "\n" );
@@ -4288,14 +4893,23 @@ def list_remove( my_list, item ):
 # Establish connection to Sump2 hardware
 def sump_connect( self ):
   log( self, ["sump_connect()"] );
-  self.bd=Backdoor(  self.vars["bd_server_ip"],
-                     int( self.vars["bd_server_socket"], 10 ) );# Note dec
-  if ( self.bd.sock == None ):
-    txt = "ERROR: Unable to locate BD_SERVER";
-    self.fatal_msg = txt;
-    print( txt );
-    log( self, [ txt ] );
-    return False;
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    import spidev;# SPI Interface Module for Pi
+    self.spi_port = spidev.SpiDev();
+    self.spi_port.open(0,1);# Note: icoboard uses CE0 for Mach, CE1 for Ice
+    self.spi_port.max_speed_hz = 32000000;# 1-32 MHz typical
+    self.mb = mesa_bus( self.spi_port, self.os_sys);# Establish a MesaBus link
+    self.bd = local_bus( self.mb, False );# Establish a LocalBus link
+  else:
+    self.bd=Backdoor(  self.vars["bd_server_ip"],
+                       int( self.vars["bd_server_socket"], 10 ) );# Note dec
+    if ( self.bd.sock == None ):
+      txt = "ERROR: Unable to locate BD_SERVER";
+      self.fatal_msg = txt;
+      print( txt );
+      log( self, [ txt ] );
+      return False;
   
   self.sump = Sump2( self.bd, int( self.vars["sump_addr"],16 ) );
   self.sump.rd_cfg();# populate sump.cfg_dict[] with HW Configuration
@@ -4306,17 +4920,18 @@ def sump_connect( self ):
     log( self, [ txt ] );
     return False;
 
-# HERE200
   # Adjust the GUI menu to remove features that don't exist in this hardware
   if ( self.sump.cfg_dict['nonrle_dis'] == 1 ):
     list_remove( self.popup_list_values, "Acquire_Normal");
     list_remove( self.popup_list_values, "Acquire_Single");
     list_remove( self.popup_list_values, "Acquire_Continuous");
+    list_remove( self.popup_list_values, "Arm_Normal");
 
   if ( self.sump.cfg_dict['rle_en'] == 0 ):
     self.popup_list_values.remove("Acquire_RLE_1x");
     self.popup_list_values.remove("Acquire_RLE_8x");
     self.popup_list_values.remove("Acquire_RLE_64x");
+    self.popup_list_values.remove("Arm_RLE");
 
   if ( self.sump.cfg_dict['trig_wd_en'] == 0 ):
     list_remove( self.popup_list_names, "Trigger_Watchdog");
@@ -4354,7 +4969,6 @@ def sump_connect( self ):
 ########################################################
 # Talk to sump2 hardware and arm for acquisition ( or dont )
 # determining the BRAM depth.
-# HERE2
 def sump_arm( self, en ):
   log( self, ["sump_arm()"]);
   if ( en == True ):
@@ -4375,6 +4989,8 @@ def sump_arm( self, en ):
         trig_type_int = self.sump.trig_or_ris;
       elif ( trig_type == "or_falling" ):
         trig_type_int = self.sump.trig_or_fal;
+      elif ( trig_type == "and_rising" ):
+        trig_type_int = self.sump.trig_and_ris;
       elif ( trig_type == "watchdog" ):
         trig_type_int = self.sump.trig_watchdog;
       elif ( trig_type == "pattern_rising" ):
@@ -4410,6 +5026,42 @@ def sump_arm( self, en ):
       print("ERROR: Unable to convert sump variables to hex");
   else:
     self.sump.wr( self.sump.cmd_state_reset,   0x00000000 );
+
+# self.bd.wr( 0x0,[0] );
+# self.bd.wr( 0x0,[0] );
+# rts = self.bd.rd( 0x0,1 )[0];
+# rts = self.bd.rd( 0x0,1 )[0];
+# self.bd.wr( 0x0,[0] );
+  return;
+
+#   self.trig_and_ris          = 0x00;# Bits AND Rising
+#   self.trig_and_fal          = 0x01;# Bits AND Falling
+#   self.trig_or_ris           = 0x02;# Bits OR  Rising
+#   self.trig_or_fal           = 0x03;# Bits OR  Falling
+#   self.trig_pat_ris          = 0x04;# Pattern Match Rising
+#   self.trig_pat_fal          = 0x05;# Pattern Match Falling
+#   self.trig_in_ris           = 0x06;# External Input Trigger Rising
+#   self.trig_in_fal           = 0x07;# External Input Trigger Falling
+  return;
+
+#   self.trig_and_ris          = 0x00;# Bits AND Rising
+#   self.trig_and_fal          = 0x01;# Bits AND Falling
+#   self.trig_or_ris           = 0x02;# Bits OR  Rising
+#   self.trig_or_fal           = 0x03;# Bits OR  Falling
+#   self.trig_pat_ris          = 0x04;# Pattern Match Rising
+#   self.trig_pat_fal          = 0x05;# Pattern Match Falling
+#   self.trig_in_ris           = 0x06;# External Input Trigger Rising
+#   self.trig_in_fal           = 0x07;# External Input Trigger Falling
+  return;
+
+#   self.trig_and_ris          = 0x00;# Bits AND Rising
+#   self.trig_and_fal          = 0x01;# Bits AND Falling
+#   self.trig_or_ris           = 0x02;# Bits OR  Rising
+#   self.trig_or_fal           = 0x03;# Bits OR  Falling
+#   self.trig_pat_ris          = 0x04;# Pattern Match Rising
+#   self.trig_pat_fal          = 0x05;# Pattern Match Falling
+#   self.trig_in_ris           = 0x06;# External Input Trigger Rising
+#   self.trig_in_fal           = 0x07;# External Input Trigger Falling
   return;
 
 #   self.trig_and_ris          = 0x00;# Bits AND Rising
@@ -4440,18 +5092,15 @@ def sump_arm( self, en ):
 
 ########################################################
 # Dump acquired data to a file. This is a corner turn op
-def sump_save_txt( self, file_name, mode_vcd = False ):
+def sump_save_txt( self, file_name, mode_vcd=False, mode_list=False,cmd=None ):
   log( self, ["sump_save_txt()"]);
   print("sump_save_txt()");
   ram_dwords = self.sump.cfg_dict['ram_dwords'];
   ram_bytes  = self.sump.cfg_dict['ram_event_bytes'];
   ram_len    = self.sump.cfg_dict['ram_len'];
   events = ram_bytes * 8;
+  start_time = time.time();
 
-# if ( mode_vcd == True ):
-#   file_name = "sump_dump.txt4vcd";
-# else:
-#   file_name = "sump_dump.txt";
   file_out  = open( file_name, 'w' );
 
   if ( mode_vcd == False ):
@@ -4464,25 +5113,91 @@ def sump_save_txt( self, file_name, mode_vcd = False ):
   percent = 0;
   percent_total = ((1.0)*self.max_samples );
   print("max_samples = " + str( self.max_samples ) );
-  for i in range( 0, self.max_samples, 1):
+
+  # Speed things up by making a list of only the visible (non hidden) sig_objs
+  sig_vis_list = [];
+  for sig_obj in self.signal_list:
+    if ( sig_obj.hidden == False ):
+      sig_vis_list += [ sig_obj ];
+
+
+  # For list view, only save the selected signals
+  if ( mode_list ):
+    old_vis_list = sig_vis_list[:];
+    sig_vis_list = [];
+    for sig_obj in old_vis_list:
+      if ( sig_obj.selected ):
+        sig_vis_list += [ sig_obj ];
+
+  if ( cmd == "list_view_cursors" or cmd == "save_vcd_cursors" ):
+    sample_left = None;
+    sample_right = None;
+    for cur_obj in self.cursor_list:
+      if   ( sample_left  == None ): sample_left  = cur_obj.sample;
+      elif ( sample_right == None ): sample_right = cur_obj.sample;
+    if ( sample_left != None and sample_right != None ):
+      if ( sample_left > sample_right ):
+        sample_left, sample_right = sample_right, sample_left;# Swap
+      if ( sample_left  < 0                ): sample_left  = 0;
+      if ( sample_right > self.max_samples ): sample_right = self.max_samples;
+    first_sample = sample_left;
+    last_sample  = sample_right;
+  else:
+    first_sample = 0;
+    last_sample  = self.max_samples;
+
+  # 10x performance improvement making these "fast lists" once up front
+  fast_event_list = [];
+  for j in range( ram_bytes*8, 0, -1):
+    for sig_obj in sig_vis_list:      
+      if ( sig_obj.name == "event[%d]" % (j-1) and sig_obj.hidden == False ):
+        fast_event_list += [ sig_obj ];
+
+  fast_dword_list = [];
+  for j in range( 0, ram_dwords, 1 ):
+    for sig_obj in sig_vis_list:      
+      if ( sig_obj.name == "dword[%d]" % j and sig_obj.hidden == False ):
+        fast_dword_list += [ sig_obj ];
+
+  fast_bundle_list = [];
+  for sig_obj in sig_vis_list:      
+    if ( sig_obj.type == "bundle" and sig_obj.hidden == False ):
+      fast_bundle_list += [ sig_obj ];
+
+  # Now go thru all the time samples and do the corner turning
+  first_line = True;# Generate the signal name and time unit legend
+  for i in range( first_sample, last_sample, 1):
     # This takes a while, so calculate and print percentage as it goes by
     if ( ((i*1.0) / percent_total) > percent ):
       perc_str = ( str( int(100*percent) ) + "%");
       draw_header( self, "VCD Conversion " + perc_str );
-      percent += .01;
+      percent += .05;
 
     txt_str = "";
     m = 0;
     # Iterate the list searching for all the events in binary order
-    for j in range( ram_bytes*8, 0, -1):
-      for sig_obj in self.signal_list:
-        if ( sig_obj.name == "event[%d]" % (j-1) and sig_obj.hidden == False ):
-          txt_str += sig_obj.values[i];
+#   for j in range( ram_bytes*8, 0, -1):
+#     for sig_obj in sig_vis_list:      
+#       if ( sig_obj.name == "event[%d]" % (j-1) and sig_obj.hidden == False ):
+    if ( True ):
+      if ( True ):
+        for sig_obj in fast_event_list:
+          if ( i >= len( sig_obj.values )):
+            txt_str += "X";
+          else:
+            # VV convert from True to "1"
+            value = sig_obj.values[i];
+            if ( isinstance( value, bool ) ):
+              if ( value ):
+                value = "1";
+              else:
+                value = "0";
+            txt_str += value;
           m +=1;
           if ( m == 8 or ( m == 1 and mode_vcd == True ) ):
             txt_str += " ";# Add whitespace between each byte group
             m = 0;
-          if ( i == 0 ):
+          if ( i == first_sample ):
             name_str     += sig_obj.name + " ";
             if ( sig_obj.nickname != "" ):
               nickname_str += sig_obj.nickname + " ";
@@ -4491,25 +5206,49 @@ def sump_save_txt( self, file_name, mode_vcd = False ):
     if ( mode_vcd == False ):
       txt_str += " ";# Add whitespace between events and dwords
 
+    # Iterate the list searching for all the bundles        
+    if ( True ):
+      if ( True ):
+        for sig_obj in fast_bundle_list:
+          if ( i == first_sample ):
+            name_str     += sig_obj.name + " ";
+            nick = sig_obj.nickname;
+            if ( nick == None or nick == "" ):
+              nick = sig_obj.name;
+            nick = nick.replace( "[", "_" );# vcd2wlf fix for 2D arrays
+            nick = nick.replace( "]", "_" );# vcd2wlf fix for 2D arrays
+            nickname_str += nick + " ";
+          txt_str += sig_obj.values[i];
+          txt_str += " ";# Add whitespace between each dword
+
     # Iterate the list searching for all the dwords in order
-    for j in range( 0, ram_dwords, 1 ):
-      for sig_obj in self.signal_list:
-        if ( sig_obj.name == "dword[%d]" % j and sig_obj.hidden == False ):
+#   for j in range( 0, ram_dwords, 1 ):
+#     for sig_obj in sig_vis_list:      
+#       if ( sig_obj.name == "dword[%d]" % j and sig_obj.hidden == False ):
+    if ( True ):
+      if ( True ):
+        for sig_obj in fast_dword_list:
           if ( i >= len( sig_obj.values )):
             txt_str += "XXXXXXXX";
           else:
             txt_str += sig_obj.values[i];
           txt_str += " ";# Add whitespace between each dword
-          if ( i == 0 ):
+          if ( i == first_sample ):
             name_str     += sig_obj.name + " ";
-            nickname_str += sig_obj.nickname + " ";
-#   print txt_str;# This line is a time sample for all signals
-    if ( i == 0 ):
+            nick = sig_obj.nickname;
+            nick = nick.replace( "[", "_" );# vcd2wlf fix for 2D arrays
+            nick = nick.replace( "]", "_" );# vcd2wlf fix for 2D arrays
+            nickname_str += nick + " ";
+    if ( first_line ):
       freq_mhz = self.sump.cfg_dict['frequency'];
       freq_ps  = 1000000.0 / freq_mhz;
       file_out.write( nickname_str + " " + ("%f" % freq_ps ) + "\n" );
+      first_line = False;
     file_out.write( txt_str + "\n" );
   file_out.close();
+  stop_time = time.time();
+  total_time = stop_time - start_time;
+  print("VCD Generation Time = %d" % total_time );
   return;
 
 
@@ -4540,7 +5279,7 @@ def sump_dump_data( self ):
   events = ram_bytes * 8;# Example, 32 events total for 4 ram_bytes
   self.dwords_start = 0;
   self.dwords_stop  = ram_phys;
-
+  start_time = time.time();
   # Event Signals
   rd_page = 0;
   dump_data = sump_dump_var_ram(self,rd_page = rd_page );
@@ -4562,9 +5301,11 @@ def sump_dump_data( self ):
       bit_val = (1 << i );
       for j in range( 0, ram_len, 1):
         if ( ( dump_data[j] & bit_val ) != 0x0 ):
-          bit = "1";
+#         bit = "1";
+          bit = True;# VV
         else:
-          bit = "0";
+#         bit = "0";
+          bit = False;# VV
         my_signal.values.append( bit );
 
   # DWORD Signals
@@ -4587,6 +5328,9 @@ def sump_dump_data( self ):
       my_signal.bit_bot   = 0;
       for j in range( 0, ram_len, 1):
         my_signal.values.append( "%08x" % dump_data[j] );
+  stop_time = time.time();
+  total_time = stop_time - start_time;
+  print("Download Time = %d" % total_time );
 
   sump_bundle_data( self );
   recalc_max_samples( self );
@@ -4599,11 +5343,15 @@ def sump_dump_data( self ):
 # values based on their children
 def sump_bundle_data( self ):
   my_signal = None;
-  for each_signal in self.signal_list:
+# for each_signal in self.signal_list:
+  for ( signal_cnt, each_signal ) in enumerate( self.signal_list ):
     if ( my_signal != None ):
       if ( each_signal.hier_level > my_level ):
         rip_list += [ each_signal.values ];
-      else:
+
+#     else:
+      if ( each_signal.hier_level == my_level or 
+           signal_cnt == len(self.signal_list)-1 ):
         value_list =      zip( *rip_list );
         my_signal.values = [];
         my_signal.bit_top    = len( rip_list )-1;
@@ -4612,7 +5360,8 @@ def sump_bundle_data( self ):
         for each_sample in value_list:
           bit = 0;
           for (i,each_bit) in enumerate ( each_sample ):
-            if ( each_bit == "1" ):
+#           if ( each_bit == "1" ):
+            if ( each_bit ):    # VV
               bit += ( 1 << i );
           my_signal.values += [ "%x" % bit ];
         my_signal = None;
@@ -4655,14 +5404,19 @@ def sump_dump_rle_data( self ):
     self.undersample_data = True;
     self.undersample_rate = 64;
 
+  if   ( self.acq_state == "acquire_rle_lossy" ):
+    self.rle_lossy = True;
+  else:
+    self.rle_lossy = False;
+
   rle_pre_trig_len  *= self.undersample_rate;
   rle_post_trig_len *= self.undersample_rate; 
 
 # print("##");
 # print( rle_pre_trig_len );
 # print( rle_post_trig_len );
-
 # ram_len    = self.sump.cfg_dict['ram_len'];
+
   ( ram_pre, ram_post, ram_len, ram_phys ) = sump_ram_len_calc(self);
 
   events = ram_bytes * 8;# Example, 32 events total for 4 ram_bytes
@@ -4674,18 +5428,33 @@ def sump_dump_rle_data( self ):
   print("sump_dump_ram( rle_time )");
   rle_time = sump_dump_ram(self,rd_page = 0x3, rd_ptr = 0x0000 );
   rle_list = list(zip( rle_time, rle_data ));
+
 # print("Oy");
 # print( len(rle_time ) );
 # print( len(rle_data ) );
 # print( len(rle_list ) );
+
   print("process_rle()");
   (start_t,stop_t, pre_trig, post_trig ) = process_rle(self,rle_list);
-# print("start_time = %08x" % start_t );
-# print("stop_time  = %08x" % stop_t );
-# if ( ( stop_t - start_t ) > 0x00100000 ):
-# if ( ( stop_t - start_t ) > 0x01000000 ):
-#   print("ERROR: Time span is too large");
-#   shutdown( self );
+
+  # It is possible for the RLE samples to be culled shorter than the DWORD
+  # window. Check for that case and pad the RLE data in order to fit DWORDs
+  if ( ram_dwords != 0 ):
+    (trig_time,trig_data )   = pre_trig[-1];
+    (start_time,start_data ) = pre_trig[ 0];
+    (stop_time,stop_data )   = post_trig[-1];
+    if ( ( trig_time - start_time ) < ( ram_phys//2 ) ):
+      print("WARNING: Need more pre-trig samples to fit DWORDs in");
+      print("start_t was %08x" % start_t );
+      start_t = start_t - ram_phys//2;
+      print("start_t now %08x" % start_t );
+      pre_trig = [( (start_time-(ram_phys//2)), start_data ) ] + pre_trig[:];
+    if ( ( stop_time - trig_time ) < ( ram_phys//2 ) ):
+      print("Need more post-trig samples to fit DWORDs in");
+      print("stop_t was %08x" % stop_t );
+      stop_t = stop_t + ram_phys//2;
+      print("stop_t now %08x" % stop_t );
+      post_trig = post_trig[:] + [( (stop_time+(ram_phys//2)), stop_data ) ];
 
   rle_hex_list = [];
   for ( rle_time, rle_data ) in ( pre_trig + post_trig ):
@@ -4693,10 +5462,12 @@ def sump_dump_rle_data( self ):
   list2file( self, "sump2_rle_dump.txt", rle_hex_list );
 
   print("expand_rle()");
+  start_time = time.time();
   (dump_data,trig_i) = expand_rle( self, start_t,stop_t,pre_trig,post_trig );
 # print( len( dump_data ) );
 
-  print("Generating RLE Event Signal List of values");
+  txt ="Generating RLE Event Signal List of values";
+  log( self, [ txt ]); print( txt ); refresh( self ); draw_screen( self );
   for i in range( 0, events, 1 ):
     txt = ("Event %d of %d" % ( i+1, events ) );
     draw_header( self, "sump_dump_rle_data() " + txt); 
@@ -4716,9 +5487,11 @@ def sump_dump_rle_data( self ):
       if ( my_signal.hidden == False ):
         for j in range( 0, len( dump_data ) , 1):
           if ( ( dump_data[j] & bit_val ) != 0x0 ):
-            bit = "1";
+#           bit = "1";
+            bit = True;# VV
           else:
-            bit = "0";
+#           bit = "0";
+            bit = False;# VV
           my_signal.values.append( bit );
         if ( self.undersample_data == True ):
           rle_undersample_signal( self, self.undersample_rate, my_signal );
@@ -4738,7 +5511,8 @@ def sump_dump_rle_data( self ):
   self.dwords_stop  = self.dwords_start + ram_phys;
 
   if ( self.undersample_data == False ):
-    print("Generating RLE DWORD Signal List of values");
+    txt ="Generating RLE DWORD Signal List of values";
+    log( self, [ txt ]); print( txt ); refresh( self ); draw_screen( self );
     # DWORD Signals. Just Null out all samples since RLE acquisition
     trig_ptr = self.sump.rd( self.sump.cmd_rd_trigger_ptr )[0];
     ram_ptr  = 0xFFFF & (trig_ptr - ram_phys//2 );
@@ -4804,9 +5578,50 @@ def sump_dump_rle_data( self ):
           my_signal = each_signal;
       if ( my_signal != None ):
         my_signal.values = my_signal.values[start_ptr:stop_ptr];
+
+  # Experimental idle gap removal
+  if ( False ):
+    all_data = [];
+    new_data = [];
+    for i in range( len(self.signal_list[0].values )):
+      data_at_t = [];
+      for each_signal in self.signal_list:
+        if ( each_signal.type != "bundle" and len(each_signal.values) > 0):
+          data_at_t +=[ each_signal.values[i] ];
+      all_data += [ data_at_t ];
+    k = 0; j = None;
+    prev_data = [];
+    for i in range( len(all_data) ):
+      now_data = all_data[i];
+      if ( now_data == prev_data ):
+        if ( k == 0 ):
+          j = i;
+        k+=1;# Count the repeats
+      else:
+        if ( k == 0 ):
+          new_data += [ now_data ];
+        elif ( k < 1024 ):
+          new_data += [ all_data[i-k:i] ];
+        else:
+#         new_data += [ now_data ];# Remove the entire idle run
+#         new_data += [ now_data ];# Remove the entire idle run
+          new_data += [ all_data[i-64:i] ];
+      prev_data = now_data;
+
+    k = 0;
+    for (i,each_signal) in enumerate( self.signal_list ):
+      if ( each_signal.type != "bundle" and len(each_signal.values) > 0):
+        each_signal.values = [];
+        for each_data in new_data:
+          each_signal.values += [ each_data[k] ];
+        k+=1;
+
  
   sump_bundle_data( self );
   recalc_max_samples( self );
+  stop_time = time.time();
+  total_time = stop_time - start_time;
+  print("RLE Decompress Time = %.1f" % total_time );
   return trig_i;
 
 def rle_undersample_signal( self, undersample_rate, my_signal ):
@@ -4892,6 +5707,9 @@ def process_rle( self, rle_list ):
   # ini defines hard limits of how many uncompressed samples pre and post trig
   rle_pre_trig_len  = int(self.vars["sump_rle_pre_trig_len" ],16);
   rle_post_trig_len = int(self.vars["sump_rle_post_trig_len" ],16);
+  rle_autocull      = int(self.vars["sump_rle_autocull" ],10 );
+  rle_gap_remove    = int(self.vars["sump_rle_gap_remove" ],10 );
+  rle_gap_replace   = int(self.vars["sump_rle_gap_replace" ],10 );
 
   # Now scale limits based on the sump_acqusition_len setting 25,50,75,100
   acq_len   = int(self.vars["sump_acquisition_len"],16);
@@ -4927,7 +5745,59 @@ def process_rle( self, rle_list ):
         prev_data = rle_data;
     if ( len( pre_list ) == 0 ):
       pre_list = [ pre_list_old[-1] ];
-  
+
+
+  # Experimental idle gap removal. This determines if there is NULL activity
+  # at the beginning of time and will shorted the rle_pre_trig_len
+  # 2017.09.22
+  if ( rle_autocull == 1 ):
+    ( rle_start_time, rle_start_data ) = pre_list[0];# 1st RLE Sample
+    for (i,( rle_time, rle_data )) in enumerate(list(pre_list[:])):
+      if ( rle_data != rle_start_data ):
+        print( len( pre_list ) );
+        pre_list = pre_list[i-1:];
+        print("Auto-Culling pre-Trigger at RLE sample %d" % (i-1) );
+        print( len( pre_list ) );
+        break;
+
+    ( rle_stop_time, rle_stop_data ) = post_list[-1];# Last RLE Sample
+    for (i,(rle_time,rle_data)) in enumerate(reversed(post_list[:])):
+      if ( rle_data != rle_stop_data ):
+        print("Auto-Culling %d post-Trigger RLE samples" % (i) );
+        print( len( post_list ) );
+        if ( i > 1 ):
+          post_list = post_list[0:-(i-1)];
+        print( len( post_list ) );
+        break;
+    if ( (i+1) == len(post_list) ):
+      post_list = [ post_list[0] ];# Only keep the 1st
+
+# rle_gap_remove = 128;
+  if ( rle_gap_remove != 0 and self.rle_lossy == True ):
+    if ( rle_gap_replace > rle_gap_remove ):
+      rle_gap_replace = rle_gap_remove;
+    pre_list_old = pre_list[:];
+    pre_list     = [ pre_list_old[0] ];
+    ( rle_start_time, rle_start_data ) = pre_list_old[0];# 1st RLE Sample
+    total_time_removed = 0;
+    prev_rle_time = rle_start_time;
+    for ( rle_time, rle_data ) in list(pre_list_old[1:]):
+      time_delta = rle_time - prev_rle_time;
+      if ( time_delta > rle_gap_remove ):
+        time_removed = time_delta - rle_gap_replace;
+        total_time_removed += time_removed;
+      prev_rle_time = rle_time;
+      pre_list += [ (rle_time-total_time_removed, rle_data ) ];
+
+    post_list_old = post_list[:];
+    post_list = [];
+    for ( rle_time, rle_data ) in list(post_list_old):
+      time_delta = rle_time - prev_rle_time;
+      if ( time_delta > rle_gap_remove ):
+        time_removed = time_delta - rle_gap_replace;
+        total_time_removed += time_removed;
+      post_list += [ (rle_time-total_time_removed,rle_data) ];
+      prev_rle_time = rle_time;
 
   # Cull any samples outside the sump_rle_pre_trig_len
   (trig_time,trig_data ) = pre_list[-1];
@@ -4969,6 +5839,9 @@ def process_rle( self, rle_list ):
   (start_time,start_data ) = pre_list[0]; 
   (stop_time,stop_data   ) = post_list[-1];
   list2file( self, "sump2_rle_cull_list.txt", culls );
+  print( "--------------" );
+  print( len( pre_list ) );
+  print( len( post_list ) );
   return ( start_time , stop_time, pre_list, post_list );
 
 def rotate_list( self, my_list, n ):
@@ -4995,13 +5868,14 @@ def sump_ram_len_calc( self ):
 ########################################################
 # Return a list of acquired SUMP capture data using variable length
 def sump_dump_var_ram( self, rd_page = 0 ):
-# HERE12
   ( ram_pre, ram_post, ram_len, ram_phys ) = sump_ram_len_calc(self);
   trig_ptr = self.sump.rd( self.sump.cmd_rd_trigger_ptr )[0];
   ram_ptr  = 0xFFFF & (trig_ptr - ram_pre - 1);
   self.sump.wr( self.sump.cmd_wr_ram_page, rd_page );
   self.sump.wr( self.sump.cmd_wr_ram_ptr , ram_ptr );# Load at specfd pre-trig
   data = self.sump.rd( self.sump.cmd_rd_ram_data, num_dwords = ram_len );
+  name = "%02x" % rd_page;
+# hexlist2file( self, "sump_dump_var_ram_" + name + ".txt", data );
   return data;
 
 
@@ -5013,12 +5887,12 @@ def sump_dump_ram( self, rd_page = 0, rd_ptr = None ):
   if ( rd_ptr != None ):
     self.sump.wr( self.sump.cmd_wr_ram_ptr , rd_ptr );# 
   data = self.sump.rd( self.sump.cmd_rd_ram_data, num_dwords = ram_len );
+# hexlist2file( self, "sump_dump_ram.txt", data );
   return data;
 
 
 ########################################################
 # Use the wave_list to generate a new signal_list   
-# HERE
 #def wave2signal_list( self ):
 # ram_len    = self.sump.cfg_dict['ram_len'];
 # ram_dwords = self.sump.cfg_dict['ram_dwords'];
@@ -5096,6 +5970,7 @@ def sump_vars_to_signal_attribs( self ):
     
     # Set any Rising or Falling edge trigger selection ( 1 only )
     if ( trig_type == "or_rising" or trig_type == "or_falling" or
+         trig_type == "and_rising" or
          trig_type == "watchdog" ):
       if ( trig_type == "or_rising" ):
         trig = +1;
@@ -5103,6 +5978,8 @@ def sump_vars_to_signal_attribs( self ):
         trig = -1;
       if ( trig_type == "watchdog" ):
         trig = -2;
+      if ( trig_type == "and_rising" ):
+        trig = +4;
       for i in range( 0, 32 , 1):
         sig_obj = get_sig_obj_by_name( self, ("event[%d]" % i ) );
         if ( ( 1<<i & trig_field ) != 0x0 ):
@@ -5403,10 +6280,19 @@ def vcdfile2signal_list( self, file_name ):
       time_stamp = int( words[0][1:], 10 );
       while ( time_now <= time_stamp ):
         for sig_obj in self.signal_list:
-          sig_obj.values.append( sig_obj.last_value );
+          # VV switch from "1" "0" ASCII to boolean for smaller DRAM use
+          if ( sig_obj.last_value == "1" ):
+            value = True;
+          elif ( sig_obj.last_value == "0" ):
+            value = False;
+          else:
+            value = sig_obj.last_value;
+#         sig_obj.values.append( sig_obj.last_value );
+          sig_obj.values.append( value );
           sample_cnt += 1;# Count Total Samples for final report at end
         time_now += sample_period;
 
+# HERE
    # Read the symbols new value and assign to last_value
     else:
       if ( words[0][0:1]=="0" or
@@ -5416,7 +6302,11 @@ def vcdfile2signal_list( self, file_name ):
         value = words[0];
       elif ( words[0][0:1] == "b" ):
         try:
-          value = int( words[0][1:],2 );# Convert Binary String to Integer
+#         value = int( words[0][1:],2 );# Convert Binary String to Integer
+          if ( words[0][1:] == "x" or words[0][1:] == "z" ):
+            value = 0;
+          else:
+            value = int( words[0][1:],2 );# Convert Binary String to Integer
           if ( symb != None ):
             num_bits = hash_dict_bits[ symb ];
             num_nibs = int(num_bits/4.00 + 0.75 );# ie 29 bits gets 8 nibbles
@@ -5435,6 +6325,7 @@ def vcdfile2signal_list( self, file_name ):
         line_num = i + dump_vars_index + 1;
         print( "ERROR line " + str(line_num) + " : " + words[0]);
         value = None;
+    
       
       # Is symb in rip_list?  If not, do normal processing
       if ( symb not in self.rip_symbs ):
@@ -5457,7 +6348,8 @@ def vcdfile2signal_list( self, file_name ):
           last_value = int( my2_each.last_value, 16 );
         except:
           last_value = 0;
-        if   ( value == "0" ):
+#       if   ( value == "0" ):
+        if   ( value == "0" or value == "z" or value == "x" ):
           last_value = last_value & ~ my_each.bit_weight;
         elif ( value == "1" ):
           last_value = last_value |   my_each.bit_weight;
@@ -5473,15 +6365,32 @@ def vcdfile2signal_list( self, file_name ):
   draw_header( self, "" );
   return;
 
-def shutdown( self ):
+
+def load_fpga( self ):
+  log( self, ["load_fpga()"]);
+  draw_header( self, "load_fpga()" );
+  os.system("sudo ./icoprog -f < top_bitmap.bin");# Program IcoBoard Flash
+  os.system("sudo ./icoprog -b");
+  draw_header( self, "Please reboot and restart SUMP2.py application" );
+
+
+def shutdown( self, system_shutdown = False, system_reboot = False ):
   log( self, ["shutdown()"]);
   var_dump( self, "sump2.ini" ); # Dump all variable to INI file
   proc_cmd( self, "save_format", [""] ); # Autosave the last format
+  if ( system_shutdown == True and system_reboot == False ):
+    draw_header( self, "Linux Shutdown initiated" );
+    os.system("sudo shutdown -h now");# Pi Shutdown ( Halt )
+  if ( system_shutdown == True and system_reboot == True  ):
+    draw_header( self, "Linux Reboot initiated" );
+    os.system("sudo shutdown -r now");# Pi Reboot
+
   if ( self.mode_cli == False ):
     self.pygame.quit();# Be IDLE friendly
   print("");
   print("Thank you for using SUMP2 " + self.vers + " by BlackMesaLabs");
   print("Please encourage the development and use of open-source software");
+
   sys.exit();
   return;
 
@@ -5508,6 +6417,13 @@ def init_globals( self ):
 
   import platform,os;
   self.os_sys = platform.system();  # Windows vs Linux
+
+  try:
+    import RPi.GPIO as gpio;
+    self.os_platform ="rpi";# This must be a RaspberryPi
+  except ImportError:
+    self.os_platform ="pc";# Assume a PC
+
   self.fatal_msg = None;
 
   self.undersample_data = False;
@@ -5525,7 +6441,9 @@ def init_globals( self ):
   self.debug = False;
   self.last_filesave = None;# Name of last file saved, used for Save_Rename
   self.vcd_import = False;
+  self.display_hints = True;
   self.acq_state = "acquire_stop";
+  self.rle_lossy = False;
   self.acq_mode  = "nonrle";
 # if ( self.mode_cli == False ):
 #   self.font = get_font( self,self.vars["font_name"],self.vars["font_size"]);
@@ -5549,6 +6467,7 @@ def init_globals( self ):
   self.cmd_history = [];
   self.dwords_start = 0;
   self.dwords_stop  = 0;
+  self.signal_list_hw = None;# Stores HW config during VCD viewing
 
   self.sig_name_start_x = 0;
   self.sig_name_start_y = 0;
@@ -5621,6 +6540,15 @@ def init_globals( self ):
   for each in glob_list:
     file_load_list += ["source "+each ];
 
+  # Create a list of files to source in menu given include and exclude filters
+  file_inc_filter = "*.vcd";
+  vcd_load_list = ["VCD_Load", "Reload_VCD"];
+  import glob;
+  glob_list = set(glob.glob(file_inc_filter));
+  for each in glob_list:
+    vcd_load_list += ["load_vcd "+each ];
+
+
   # Right-Click menu over signal names 
   self.popup_list_names = [
 #   "--------","Group","Group+","Expand","Collapse","Insert_Divider",
@@ -5640,7 +6568,12 @@ def init_globals( self ):
 #                "Delete_Format", "Save_Selected" ], \
 
 #   "--------",[ "Font_Size", "Font_Larger","Font_Smaller"],\
-    "--------","Trigger_Rising","Trigger_Falling","Trigger_Watchdog",\
+#   "--------","Trigger_Rising","Trigger_Falling","Trigger_Watchdog",\
+    "--------","Trigger_Rising","Trigger_Falling","Trigger_AND",\
+               "Trigger_Watchdog","Trigger_Remove","Trigger_Remove_All",\
+#   "Trigger_Watchdog",\
+#   "--------","Trigger_Rising","Trigger_Falling",\
+#              "Trigger_Any_Rising","Trigger_Any_Falling","Trigger_Watchdog",\
     "--------","Set_Pattern_0","Set_Pattern_1","Clear_Pattern_Match",\
     "--------","Set_Data_Enable","Clear_Data_Enable",\
     "--------",["SUMP_Configuration","sump_trigger_delay",\
@@ -5648,6 +6581,9 @@ def init_globals( self ):
                                      "sump_user_ctrl",\
                                      "sump_user_pattern0",\
                                      "sump_user_pattern1",\
+                                     "sump_rle_autocull",\
+                                     "sump_rle_gap_remove",\
+                                     "sump_rle_gap_replace",\
                                      "sump_watchdog_time"],\
     "--------",["Acquisition_Length",
                 "[----T----]",
@@ -5662,7 +6598,8 @@ def init_globals( self ):
 #              "BD_SHELL","Manual","Quit"];
 
   # Right-Click menu over waveform area 
-  self.popup_list_values = [ 
+  self.popup_list_values = [ ];
+  self.popup_list_values += [ 
 #   "--------","Debug_Vars",
 #   "--------","Reload",
 #   "Scroll_Toggle",
@@ -5672,12 +6609,31 @@ def init_globals( self ):
 
     "--------",["Cursors",
                "Cursors_to_View","Cursor1_to_Here","Cursor2_to_Here",
-               "Crop_to_Cursors"],\
+               "Crop_to_Cursors","Crop_to_INI"],];
+
+# if ( self.os_sys != "Linux" ):
+  if ( self.os_platform != "rpi" ):
+    self.popup_list_values+=[["List_View",
+                              "List_View_Cursors","List_View_Full"]];# Win
+
+
+  self.popup_list_values+=[ \
+
+#              ["Acquire",
+#              "Acquire_Normal","Acquire_RLE","Acquire_Stop",],
+
                ["Acquire",
-               "Acquire_Normal","Acquire_RLE","Acquire_Stop",],
+               "Acquire_Normal","Acquire_RLE","Acquire_RLE_Lossy",
+               "--------",
+               "Arm_Normal","Arm_RLE",
+               "--------",
+#              "Acquire_Download","Acquire_Stop"],
+               "Download_Normal","Download_RLE","Download_RLE_Lossy",
+               "--------",
+               "Acquire_Stop"],
+
 #              "Acquire_Single","Acquire_Continuous",
 #              "Acquire_RLE_1x","Acquire_RLE_8x","Acquire_RLE_64x",
-#              "Acquire_Stop",],
 
 #   "--------","Crop_to_Cursors",
 #   "--------","Cursors_to_View","Cursor1_to_Here","Cursor2_to_Here",\
@@ -5689,13 +6645,29 @@ def init_globals( self ):
 #              "Acquire_RLE_64x",
 #   "--------",
 #              ["File_Load","File1","File2"],
-               file_load_list,
                ["File_Save","Save_PNG","Save_JPG","Save_BMP",
-#               "Save_TXT","Save_VCD","Save_RLE_VCD","Save_Rename"],
-                "Save_TXT","Save_VCD","Save_Rename"],
+                "Save_TXT","Save_Rename"],
+               file_load_list,
+               ["VCD_Save","Save_VCD_Full","Save_VCD_Cursors",],
+               vcd_load_list,
+
 #              ["Fonts","Font_Larger","Font_Smaller"],
-               ["Misc","Font_Larger","Font_Smaller",
-               "BD_SHELL","Manual"],"Quit"];
+#              ["Misc","Font_Larger","Font_Smaller",
+#              "BD_SHELL","Manual"],
+               ];
+#              "Quit"];
+#              ["System","Quit","Shutdown","Reboot","Load_FPGA"]];# Pi
+# if ( self.os_sys == "Linux" ):
+  if ( self.os_platform == "rpi" ):
+    self.popup_list_values+=[["Misc","Font_Larger","Font_Smaller"]];
+    self.popup_list_values+=[["System","Quit","Shutdown","Reboot","Load_FPGA"]];
+  else:
+    self.popup_list_values+=[["Misc","Font_Larger","Font_Smaller",
+                              "BD_SHELL","Manual","Key_Macros"]];
+#   self.popup_list_values+=[["System","Quit"]];# Win
+    self.popup_list_values+=["Quit"];# Win
+
+
   self.popup_list = self.popup_list_values;
   self.cmd_alias_hash_dict = {};
   self.cmd_alias_hash_dict["zi"]    = "zoom_in";
@@ -5774,6 +6746,8 @@ class signal(object):
 class Sump2:
   def __init__ ( self, backdoor, addr ):
     self.bd = backdoor;
+
+
     self.addr_ctrl = addr;
     self.addr_data = addr + 0x4;
     self.cmd_state_idle        = 0x00;
@@ -5871,7 +6845,6 @@ class TXT2VCD:
     return;
 
   def conv_txt2vcd ( self, main_self, txt_list ):
-# def conv_txt2vcd ( self, txt_list ):
     """
     Take in a txt list and spit out a vcd
     """
@@ -5888,15 +6861,26 @@ class TXT2VCD:
     next_perc = 0;# Display an update every 5%
     total_count = len( data_lines );
     prev_data_line = None;
-    # HERETODAY
+    prev_bit_value = None;
     for ( i, data_line ) in enumerate( data_lines ):
       if ( data_line != prev_data_line ):
         rts += [ "#" + str(time) ]; 
         bit_list = self.get_bit_value( data_line, header_line, bus_widths[:] );
-        rts += self.dump_bit_value( bit_list, self.char_code[:] );
+        new_bit_value = self.dump_bit_value( bit_list, self.char_code[:] );
+        final_bit_value = [];# Used for VCD delta compression
+        # Convert SUMP compression ( something changed, so here is everything ) to
+        # VCD compression ( only this signal changed since last clock )
+        # Go thru all the signals and only VCD store the ones that changed from prev
+        for ( j, ( each_bit, each_char_code ) ) in enumerate( new_bit_value ):
+          if ( prev_bit_value == None ):
+            final_bit_value += [ each_bit + each_char_code ];
+          else:	    
+            ( old_bit, old_char_code ) = prev_bit_value[j];
+            if ( old_bit != each_bit ):
+              final_bit_value += [ each_bit + each_char_code ];
+        rts += final_bit_value;	
+        prev_bit_value = new_bit_value;
         prev_data_line = data_line;
-
-#     prev_data_line = data_line;
       time += int( timescale );
 
       # TODO: Would be nice to have this call draw_header() instead.
@@ -5934,8 +6918,9 @@ class TXT2VCD:
     """
     rts = [];
     for bit in bit_list:
-      rts += [     bit +char_code_list_cp.pop(0) ];
-#     rts += [ str(bit)+char_code_list_cp.pop(0) ];
+      char_code = char_code_list_cp.pop(0);
+#     rts += [ bit + char_code ];
+      rts += [ (bit , char_code) ];
     return rts;
 
 
@@ -6037,15 +7022,17 @@ class Backdoor:
     self.wr( addr, [data_new] );
 
   def wr(self, addr, data, repeat = False ):
-#   print("HERE");
 #   print("%08x" % addr );
 #   print( data );
     if ( repeat == False ):
       cmd = "w";# Normal Write : Single or Burst with incrementing address
     else:
       cmd = "W";# Write Multiple DWORDs to same address
-    payload = "".join( [cmd + " %x" % addr] +
-                       [" %x" % int(d) for d in data] +
+#   payload = "".join( [cmd + " %x" % addr] +
+#                      [" %x" % int(d) for d in data] +
+#                      ["\n"] );
+    payload = "".join( [cmd + " %08x" % addr] +
+                       [" %08x" % int(d) for d in data] +
                        ["\n"] );
     self.tx_tcp_packet( payload );
     self.rx_tcp_packet();
@@ -6055,7 +7042,8 @@ class Backdoor:
       cmd = "r";# Normal Read : Single or Burst with incrementing address
     else:
       cmd = "k";# Read Multiple DWORDs from single address
-    payload = cmd + " %x %x\n" % (addr, (num_dwords-1)); # 0=1DWORD,1=2DWORDs
+#   payload = cmd + " %x %x\n" % (addr, (num_dwords-1)); # 0=1DWORD,1=2DWORDs
+    payload = cmd + " %08x %08x\n" % (addr,(num_dwords-1));# 0=1DWORD,1=2DWORDs
     self.tx_tcp_packet( payload );
     payload = self.rx_tcp_packet().rstrip();
     dwords = payload.split(' ');
@@ -6086,6 +7074,150 @@ class Backdoor:
       bin_data = self.sock.recv(1024);
       payload += bin_data.decode("utf-8");# ByteArray to String
     return payload;
+
+
+###############################################################################
+# Routines for Reading and Writing a remote 32bit LocalBus over MesaBus
+# A local bus cycle is a pre-determined payload transported over the MesaBus
+# LocalBus is mapped to SubSlot 0x0
+#  0x0 : Write DWORD or Burst starting at Address
+#  0x1 : Read  DWORD or Burst starting at Address
+#  0x2 : Write Multiple DWORDs to same Address
+#  0x3 : Read Multiple DWORDs from same Address
+class local_bus:
+  def __init__ ( self, mesa_bus, dbg_flag ):
+    self.mesa_bus = mesa_bus;
+    self.dbg_flag = dbg_flag;
+
+  def wr( self, addr, data, repeat = False ):
+    # LocalBus WR cycle is a Addr+Data 8byte payload
+    # Mesabus has maximum payload of 255 bytes, or 63 DWORDs.
+    # 1 DWORD is LB Addr, leaving 62 DWORDs available for data bursts
+    # if data is more than 62 dwords, parse it into multiple bursts
+    each_addr = addr;
+    data_list = data;
+    while ( len( data_list ) > 0 ):
+#     if ( len( data_list ) > 62 ):
+#       data_payload = data_list[0:62];
+#       data_list    = data_list[62:];
+#     else:
+#       data_payload = data_list[0:];
+#       data_list    = [];
+      # Note: MesaBus on icoboard doesn't support bursts writes yet.
+      if ( len( data_list ) > 1 ):
+        data_payload = data_list[0:1];
+        data_list    = data_list[1:];
+      else:
+        data_payload = data_list[0:];
+        data_list    = [];
+
+      payload = ( "%08x" % each_addr );
+      for each_data in data_payload:
+        payload += ( "%08x" % each_data );
+        each_addr +=4;
+#     print(payload);
+      self.mesa_bus.wr( 0x00, 0x0, 0x0, payload );
+    return;
+
+
+  def rd( self, addr, num_dwords = 1, repeat = False ):
+    dwords_remaining = num_dwords;
+    each_addr = addr;
+    rts = [];
+    rts_dword = "00000000";
+    while ( dwords_remaining > 0 ):
+      # MesaBus has 255 byte limit on payload, so split up large reads
+#     if ( dwords_remaining > 62 ):
+#       n_dwords = 62;
+#       dwords_remaining -= 62;
+#     else:
+#       n_dwords = dwords_remaining;
+#       dwords_remaining = 0;
+
+      # Note: MesaBus on icoboard doesn't support bursts or repeat reads yet.
+      if ( dwords_remaining > 1 ):
+        n_dwords = 1;
+        dwords_remaining -= 1;
+      else:
+        n_dwords = dwords_remaining;
+        dwords_remaining = 0;
+
+      # LocalBus RD cycle is a Addr+Len 8byte payload to 0x00,0x0,0x1
+      payload = ( "%08x" % each_addr ) + ( "%08x" % n_dwords );
+      self.mesa_bus.wr( 0x00, 0x0, 0x1, payload );
+      rts_mesa = self.mesa_bus.rd();
+      # The Mesa Readback Ro packet resembles a Wi Write packet from slot 0xFE
+      # This is to support a synchronous bus that clocks 0xFFs for idle
+      # This only handles single DWORD reads and checks for:
+      #   "F0FE0004"+"12345678" + "\n"
+      #   "04" is num payload bytes and "12345678" is the read payload
+      if ( len( rts_mesa ) > 8 ):
+        rts_str = rts_mesa[8:];# Strip the FOFE0004 header
+        while ( len( rts_str ) >= 8 ):
+          rts_dword = rts_str[0:8];
+          rts_str   = rts_str[8:];
+          try:
+            rts += [ int( rts_dword, 16 ) ];
+          except:
+#           print("ERROR:Invalid LocalBus Read "+rts_mesa+" "+rts_dword);
+            if ( self.dbg_flag == "debug" ):
+              sys.exit();
+            rts += [ 0x00000000 ];
+      else:
+#       print("ERROR: Invalid LocalBus Read " + rts_mesa + " " + rts_dword);
+        if ( self.dbg_flag == "debug" ):
+          sys.exit();
+        rts += [ 0x00000000 ];
+      if ( repeat == False ):
+        each_addr += ( 4 * n_dwords );# Note dword to byte addr translation
+#   print( rts );
+    return rts;
+
+
+###############################################################################
+# Routines for Reading and Writing Payloads over MesaBus
+# A payload is a series of bytes in hexadecimal string format. A typical use
+# for MesaBus is to transport a higher level Local Bus protocol for 32bit
+# writes and reads. MesaBus is lower level and transports payloads to a
+# specific device on a serial chained bus based on the Slot Number.
+# More info at : https://blackmesalabs.wordpress.com/2016/03/04/mesa-bus/
+class mesa_bus:
+  def __init__ ( self, port, os_sys ):
+    self.port = port;
+    self.os_sys = os_sys;
+
+  def wr( self, slot, subslot, cmd, payload ):
+    preamble  = "FFF0";
+    slot      = "%02x" % slot;
+    subslot   = "%01x" % subslot;
+    cmd       = "%01x" % cmd;
+    num_bytes = "%02x" % ( len( payload ) / 2 );
+    mesa_str  = preamble + slot + subslot + cmd + num_bytes + payload;
+#   if ( type( self.port ) == spidev.SpiDev ):
+#   if ( self.os_sys == "Linux" ):
+    if ( self.os_platform == "rpi" ):
+      mesa_hex_list = [];
+      for i in range( 0, len(mesa_str)/2 ):
+        mesa_hex = int(mesa_str[i*2:i*2+2],16);
+        mesa_hex_list += [mesa_hex];
+      rts = self.port.xfer2( mesa_hex_list );
+    else:
+      self.port.wr( mesa_str );
+    return;
+
+  def rd( self ):
+#   if ( type( self.port ) == spidev.SpiDev ):
+#   if ( self.os_sys == "Linux" ):
+    if ( self.os_platform == "rpi" ):
+      hex_str = "";
+      rts = self.port.xfer2(8*[0xFF]);
+      for each in rts:
+        hex_str += ("%02x" % each );
+      rts = hex_str;
+    else:
+      rts = self.port.rd();
+    return rts;
+
 
 ###############################################################################
 main = main();

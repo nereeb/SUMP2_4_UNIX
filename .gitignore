@@ -1,0 +1,8 @@
+#For MacOS
+*.DS_Store
+*.txt
+*.vcd
+*.swp
+*.swp
+sump2.ini
+bd_server.ini
